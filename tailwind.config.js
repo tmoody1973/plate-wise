@@ -55,7 +55,8 @@ module.exports = {
       },
       fontFamily: {
         'sans': ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        'display': ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        'display': ['Fredoka', 'system-ui', 'sans-serif'],
+        'heading': ['Fredoka', 'system-ui', 'sans-serif'],
       },
       animation: {
         'cultural-glow': 'cultural-glow 3s ease-in-out infinite',

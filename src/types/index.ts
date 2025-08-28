@@ -386,3 +386,36 @@ export interface MealPlanPreferences {
   };
   mealTypes: ('breakfast' | 'lunch' | 'dinner' | 'snack')[];
 }
+
+// Cultural theme types
+export interface CulturalTheme {
+  id: string;
+  name: string;
+  displayName: string;
+  colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+    gradient: string[];
+  };
+  patterns: {
+    background: string;
+    accent: string;
+  };
+  typography: {
+    heading: string;
+    body: string;
+  };
+  culturalElements: {
+    cuisine: string[];
+    traditions: string[];
+    ingredients: string[];
+  };
+}
+
+export interface ThemeContextType {
+  currentTheme: CulturalTheme;
+  availableThemes: CulturalTheme[];
+  setTheme: (themeId: string) => void;
+  isLoading: boolean;
+}

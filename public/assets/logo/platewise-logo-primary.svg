@@ -1,0 +1,32 @@
+<svg width="200" height="60" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:var(--cultural-primary, #f97316);stop-opacity:1" />
+      <stop offset="50%" style="stop-color:var(--cultural-secondary, #3b82f6);stop-opacity:1" />
+      <stop offset="100%" style="stop-color:var(--cultural-accent, #10b981);stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Plate Icon -->
+  <circle cx="30" cy="30" r="25" fill="url(#logoGradient)" stroke="white" stroke-width="2"/>
+  <circle cx="30" cy="30" r="18" fill="none" stroke="white" stroke-width="1.5" opacity="0.7"/>
+  <circle cx="30" cy="30" r="3" fill="white"/>
+  
+  <!-- Cultural Pattern Overlay -->
+  <g opacity="0.3">
+    <path d="M15 20 L25 30 L15 40 M35 20 L45 30 L35 40" stroke="white" stroke-width="1.5" fill="none"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="70" y="25" font-family="Inter, sans-serif" font-size="24" font-weight="700" fill="var(--cultural-primary, #f97316)">
+    Plate
+  </text>
+  <text x="70" y="45" font-family="Inter, sans-serif" font-size="24" font-weight="700" fill="var(--cultural-secondary, #3b82f6)">
+    Wise
+  </text>
+  
+  <!-- Tagline -->
+  <text x="70" y="55" font-family="Inter, sans-serif" font-size="8" font-weight="400" fill="#6b7280" opacity="0.8">
+    Cultural Meal Planning & Budget Optimization
+  </text>
+</svg>
