@@ -41,6 +41,8 @@
   },
   "homepage": "https://github.com/tmoody1973/plate-wise#readme",
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.876.0",
+    "@aws-sdk/credential-providers": "^3.876.0",
     "@heroicons/react": "^2.2.0",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",

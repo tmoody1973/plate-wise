@@ -69,32 +69,32 @@
     - Create route protection and loading states for all protected pages
     - _Requirements: 6.1, 16.4_
 
-- [ ] 5. External API Integration Layer
-  - [ ] 5.1 Set up Amazon Bedrock integration for AI features
+- [x] 5. External API Integration Layer
+  - [x] 5.1 Set up Amazon Bedrock integration for AI features
     - Configure AWS SDK and Bedrock client setup
     - Implement AI service wrapper with error handling and rate limiting
     - Create prompt templates for meal planning and recipe recommendations
     - _Requirements: 11.8, 14.1, 14.2, 14.3, 14.4, 14.5, 14.6_
 
-  - [ ] 5.2 Integrate Kroger Catalog API for pricing and product data
+  - [x] 5.2 Integrate Kroger Catalog API for pricing and product data
     - Set up Kroger API authentication and product search functionality
     - Implement price comparison and coupon retrieval features
     - Build store location discovery and product availability checking
     - _Requirements: 4.1, 4.2, 11.1, 12.1, 12.2, 12.3, 12.4, 12.5_
 
-  - [ ] 5.3 Connect Spoonacular and Edamam APIs for recipe and nutrition data
+  - [x] 5.3 Connect Spoonacular and Edamam APIs for recipe and nutrition data
     - Integrate Spoonacular API for recipe database access and search
     - Set up Edamam API for nutritional analysis and recipe parsing
     - Implement recipe similarity and cuisine-based filtering
     - _Requirements: 11.2, 11.3, 18.1, 10.1, 10.2_
 
-  - [ ] 5.4 Set up ElevenLabs API for multilingual voice features
+  - [x] 5.4 Set up ElevenLabs API for multilingual voice features
     - Configure ElevenLabs API for text-to-speech functionality
     - Implement voice command processing and audio feedback
     - Build voice recipe input and transcription features
     - _Requirements: 5.4, 5.5, 5.6, 5.9, 11.4_
 
-  - [ ] 5.5 Integrate Google Places and USDA APIs for local store discovery
+  - [x] 5.5 Integrate Google Places and USDA APIs for local store discovery
     - Set up Google Places API for grocery store and specialty market discovery
     - Integrate USDA API for farmer market data and seasonal information
     - Implement location-based store recommendations
