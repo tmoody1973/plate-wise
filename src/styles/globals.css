@@ -4,6 +4,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Animation delays for food elements */
+.animation-delay-1000 {
+  animation-delay: 1s;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
 :root {
   /* Default cultural theme variables */
   --cultural-primary: #f97316;

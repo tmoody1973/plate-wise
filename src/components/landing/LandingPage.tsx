@@ -35,29 +35,66 @@ export function LandingPage() {
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
-          <div className="text-center">
-            <h1 className="text-4xl sm:text-5xl md:text-7xl font-heading font-semibold text-gray-900 mb-6 leading-tight uppercase" style={{fontWeight: 600}}>
-              COOK WITH CULTURE,<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-orange-500">
-                SAVE WITH WISDOM
-              </span>
-            </h1>
-            <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-8 sm:mb-12 max-w-3xl mx-auto leading-relaxed px-4">
-              Discover authentic recipes from your heritage while optimizing your grocery budget with AI-powered meal planning
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={() => router.push('/auth')}
-                className="bg-gradient-to-r from-rose-500 to-orange-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200"
-              >
-                Start planning meals
-              </button>
-              <button
-                onClick={() => router.push('/auth')}
-                className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-full text-lg font-semibold hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
-              >
-                Learn more
-              </button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            {/* Left side - Text content */}
+            <div className="text-center lg:text-left">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-heading font-semibold text-gray-900 mb-6 leading-tight uppercase" style={{fontWeight: 600}}>
+                COOK WITH CULTURE,<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-orange-500">
+                  SAVE WITH WISDOM
+                </span>
+              </h1>
+              <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-8 sm:mb-12 max-w-3xl lg:max-w-none mx-auto lg:mx-0 leading-relaxed px-4 lg:px-0">
+                Discover authentic recipes from your heritage while optimizing your grocery budget with AI-powered meal planning
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                <button
+                  onClick={() => router.push('/auth')}
+                  className="bg-gradient-to-r from-rose-500 to-orange-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+                >
+                  Start planning meals
+                </button>
+                <button
+                  onClick={() => router.push('/auth')}
+                  className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-full text-lg font-semibold hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
+                >
+                  Learn more
+                </button>
+              </div>
+            </div>
+
+            {/* Right side - Food image */}
+            <div className="flex justify-center lg:justify-end">
+              <div className="relative">
+                {/* Main circular food image */}
+                <div className="w-80 h-80 sm:w-96 sm:h-96 lg:w-[450px] lg:h-[450px] rounded-full overflow-hidden shadow-2xl border-8 border-white bg-gradient-to-br from-orange-100 to-rose-100">
+                  {/* Placeholder food image */}
+                  <div className="w-full h-full bg-gradient-to-br from-orange-200 via-rose-200 to-yellow-200 flex items-center justify-center relative">
+                    {/* Food placeholder content */}
+                    <div className="text-center">
+                      <div className="text-8xl mb-4">🍽️</div>
+                      <div className="text-gray-600 font-medium text-lg">Delicious Cultural Cuisine</div>
+                      <div className="text-gray-500 text-sm mt-2">Coming Soon</div>
+                    </div>
+                    
+                    {/* Decorative food elements */}
+                    <div className="absolute top-8 left-8 text-4xl animate-bounce">🥗</div>
+                    <div className="absolute top-12 right-12 text-3xl animate-pulse">🍅</div>
+                    <div className="absolute bottom-16 left-12 text-3xl animate-bounce animation-delay-1000">🥕</div>
+                    <div className="absolute bottom-8 right-8 text-4xl animate-pulse animation-delay-2000">🌶️</div>
+                  </div>
+                </div>
+
+                {/* Floating badge */}
+                <div className="absolute -top-4 -right-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-full shadow-lg transform rotate-12 animate-pulse">
+                  <div className="text-2xl font-bold">20%</div>
+                  <div className="text-xs font-medium">SAVINGS</div>
+                </div>
+
+                {/* Decorative elements */}
+                <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-yellow-200 rounded-full opacity-60 animate-pulse"></div>
+                <div className="absolute -top-8 -left-8 w-16 h-16 bg-rose-200 rounded-full opacity-40 animate-bounce"></div>
+              </div>
             </div>
           </div>
         </div>
