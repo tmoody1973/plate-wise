@@ -67,29 +67,15 @@ export function LandingPage() {
             <div className="flex justify-center lg:justify-end">
               <div className="relative">
                 {/* Main circular food image */}
-                <div className="w-80 h-80 sm:w-96 sm:h-96 lg:w-[450px] lg:h-[450px] rounded-full overflow-hidden shadow-2xl border-8 border-white bg-gradient-to-br from-orange-100 to-rose-100">
-                  {/* Placeholder food image */}
-                  <div className="w-full h-full bg-gradient-to-br from-orange-200 via-rose-200 to-yellow-200 flex items-center justify-center relative">
-                    {/* Food placeholder content */}
-                    <div className="text-center">
-                      <div className="text-8xl mb-4">🍽️</div>
-                      <div className="text-gray-600 font-medium text-lg">Delicious Cultural Cuisine</div>
-                      <div className="text-gray-500 text-sm mt-2">Coming Soon</div>
-                    </div>
-                    
-                    {/* Decorative food elements */}
-                    <div className="absolute top-8 left-8 text-4xl animate-bounce">🥗</div>
-                    <div className="absolute top-12 right-12 text-3xl animate-pulse">🍅</div>
-                    <div className="absolute bottom-16 left-12 text-3xl animate-bounce animation-delay-1000">🥕</div>
-                    <div className="absolute bottom-8 right-8 text-4xl animate-pulse animation-delay-2000">🌶️</div>
-                  </div>
+                <div className="w-80 h-80 sm:w-96 sm:h-96 lg:w-[450px] lg:h-[450px] rounded-full overflow-hidden shadow-2xl border-8 border-white">
+                  <img 
+                    src="/assets/images/cultural-food-hero.png" 
+                    alt="Traditional Ethiopian cuisine with injera bread and colorful dishes being shared by hands, representing cultural food traditions and community dining"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
 
-                {/* Floating badge */}
-                <div className="absolute -top-4 -right-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-full shadow-lg transform rotate-12 animate-pulse">
-                  <div className="text-2xl font-bold">20%</div>
-                  <div className="text-xs font-medium">SAVINGS</div>
-                </div>
+
 
                 {/* Decorative elements */}
                 <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-yellow-200 rounded-full opacity-60 animate-pulse"></div>
