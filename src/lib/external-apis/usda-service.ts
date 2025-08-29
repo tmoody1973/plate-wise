@@ -729,7 +729,7 @@ export class USDAService {
     recommendations.push(`${season.charAt(0).toUpperCase() + season.slice(1)} is perfect for fresh ${produce.map(p => p.name.toLowerCase()).join(', ')}`);
     
     if (produce.length > 0) {
-      recommendations.push(`Visit farmer markets for the freshest ${produce[0].name.toLowerCase()} and other seasonal produce`);
+      recommendations.push(`Visit farmer markets for the freshest ${produce[0]!.name.toLowerCase()} and other seasonal produce`);
       recommendations.push(`Try traditional recipes featuring ${produce.slice(0, 2).map(p => p.name.toLowerCase()).join(' and ')}`);
     }
 

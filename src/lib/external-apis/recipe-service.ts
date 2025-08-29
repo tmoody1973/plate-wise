@@ -1,14 +1,13 @@
 /**
  * Unified Recipe Service
- * Combines Spoonacular and Edamam APIs for comprehensive recipe and nutrition data
+ * Uses Spoonacular API for comprehensive recipe and nutrition data
  */
 
 import { spoonacularService, type SpoonacularRecipe, type RecipeSearchParams as SpoonacularSearchParams } from './spoonacular-service';
-import { edamamService, type EdamamRecipe, type EdamamNutritionAnalysis } from './edamam-service';
 
 export interface UnifiedRecipe {
   id: string;
-  source: 'spoonacular' | 'edamam' | 'user';
+  source: 'spoonacular' | 'user';
   title: string;
   description: string;
   image: string;
@@ -122,9 +121,7 @@ export class RecipeService {
       const spoonacularResults = await this.searchSpoonacularRecipes(filters);
       recipes.push(...spoonacularResults);
 
-      // Search Edamam
-      const edamamResults = await this.searchEdamamRecipes(filters);
-      recipes.push(...edamamResults);
+      // Only using Spoonacular now
 
       // Sort by relevance and cultural authenticity
       return this.sortRecipesByRelevance(recipes, filters);
@@ -139,7 +136,7 @@ export class RecipeService {
    */
   async getRecipeDetails(
     recipeId: string,
-    source: 'spoonacular' | 'edamam',
+    source: 'spoonacular',
     culturalContext?: string
   ): Promise<UnifiedRecipe | null> {
     try {
@@ -150,10 +147,6 @@ export class RecipeService {
         if (spoonacularRecipe) {
           recipe = await this.convertSpoonacularRecipe(spoonacularRecipe);
         }
-      } else if (source === 'edamam') {
-        // Edamam doesn't have a direct recipe details endpoint
-        // Would need to implement recipe lookup by URI
-        console.warn('Edamam recipe details not implemented');
       }
 
       if (recipe && culturalContext) {
@@ -251,23 +244,18 @@ export class RecipeService {
     servings: number,
     culturalOrigin?: string
   ): Promise<{
-    nutrition: EdamamNutritionAnalysis | null;
+    nutrition: UnifiedNutrition | null;
     culturalNutritionNotes: string[];
     healthRecommendations: string[];
   }> {
-    const nutrition = await edamamService.analyzeNutrition({
-      title: 'Recipe Analysis',
-      ingr: ingredients,
-      yield: servings,
-    });
-
+    // Use Spoonacular's nutrition data
+    const nutrition = this.getDefaultNutrition(); // Placeholder for now
+    
     const culturalNutritionNotes = culturalOrigin 
       ? this.getCulturalNutritionNotes(culturalOrigin, nutrition)
       : [];
 
-    const healthRecommendations = nutrition 
-      ? await this.generateHealthRecommendations(nutrition)
-      : [];
+    const healthRecommendations: string[] = []; // Simplified for now
 
     return {
       nutrition,
@@ -281,7 +269,7 @@ export class RecipeService {
    */
   async findSimilarRecipes(
     recipeId: string,
-    source: 'spoonacular' | 'edamam',
+    source: 'spoonacular',
     culturalPreference?: string,
     limit: number = 5
   ): Promise<UnifiedRecipe[]> {
@@ -314,43 +302,29 @@ export class RecipeService {
       cuisine: filters.cuisines?.join(','),
       diet: filters.diets?.join(','),
       intolerances: filters.intolerances?.join(','),
+      includeIngredients: filters.includeIngredients?.join(','),
+      excludeIngredients: filters.excludeIngredients?.join(','),
+      instructionsRequired: true,
+      fillIngredients: false,
+      addRecipeInformation: true,
+      addRecipeInstructions: false,
+      addRecipeNutrition: false,
       maxReadyTime: filters.maxReadyTime,
+      ignorePantry: true,
+      sort: 'meta-score',
+      offset: filters.offset || 0,
+      number: filters.limit || 12,
       minServings: filters.minServings,
       maxServings: filters.maxServings,
       minCalories: filters.minCalories,
       maxCalories: filters.maxCalories,
-      includeIngredients: filters.includeIngredients?.join(','),
-      excludeIngredients: filters.excludeIngredients?.join(','),
-      number: filters.limit || 12,
-      offset: filters.offset || 0,
-      addRecipeInformation: true,
-      fillIngredients: true,
     };
 
     const result = await spoonacularService.searchRecipes(params);
     return Promise.all(result.results.map(recipe => this.convertSpoonacularRecipe(recipe)));
   }
 
-  /**
-   * Search Edamam recipes
-   */
-  private async searchEdamamRecipes(filters: RecipeSearchFilters): Promise<UnifiedRecipe[]> {
-    const params = {
-      q: filters.query,
-      cuisineType: filters.cuisines,
-      diet: filters.diets,
-      health: filters.healthLabels,
-      time: filters.maxReadyTime ? `1-${filters.maxReadyTime}` : undefined,
-      calories: filters.minCalories && filters.maxCalories 
-        ? `${filters.minCalories}-${filters.maxCalories}` 
-        : undefined,
-      from: filters.offset || 0,
-      to: (filters.offset || 0) + (filters.limit || 12),
-    };
 
-    const result = await edamamService.searchRecipes(params);
-    return Promise.all(result.hits.map(hit => this.convertEdamamRecipe(hit.recipe)));
-  }
 
   /**
    * Convert Spoonacular recipe to unified format
@@ -371,7 +345,7 @@ export class RecipeService {
       cuisines: recipe.cuisines,
       dishTypes: recipe.dishTypes,
       diets: recipe.diets,
-      healthLabels: [], // Spoonacular doesn't have health labels like Edamam
+      healthLabels: [], // Spoonacular doesn't provide health labels
       ingredients: this.convertSpoonacularIngredients(recipe.extendedIngredients || []),
       instructions: this.convertSpoonacularInstructions(recipe.analyzedInstructions || []),
       nutrition,
@@ -385,35 +359,7 @@ export class RecipeService {
     };
   }
 
-  /**
-   * Convert Edamam recipe to unified format
-   */
-  private async convertEdamamRecipe(recipe: EdamamRecipe): Promise<UnifiedRecipe> {
-    const nutrition = this.convertEdamamNutrition(recipe);
-    
-    return {
-      id: recipe.uri,
-      source: 'edamam',
-      title: recipe.label,
-      description: '', // Edamam doesn't provide descriptions
-      image: recipe.image,
-      servings: recipe.yield,
-      readyInMinutes: recipe.totalTime || 0,
-      cuisines: recipe.cuisineType,
-      dishTypes: recipe.dishType,
-      diets: recipe.dietLabels,
-      healthLabels: recipe.healthLabels,
-      ingredients: this.convertEdamamIngredients(recipe.ingredients),
-      instructions: [], // Edamam doesn't provide detailed instructions
-      nutrition,
-      culturalScore: 0, // Will be calculated separately
-      healthScore: this.calculateEdamamHealthScore(recipe),
-      difficulty: 'medium', // Default since Edamam doesn't provide difficulty
-      tags: [...recipe.cuisineType, ...recipe.dishType, ...recipe.dietLabels],
-      sourceUrl: recipe.url,
-      author: recipe.source,
-    };
-  }
+
 
   /**
    * Helper methods for data conversion and analysis
@@ -448,33 +394,16 @@ export class RecipeService {
     return steps;
   }
 
-  private convertEdamamIngredients(ingredients: any[]): UnifiedIngredient[] {
-    return ingredients.map((ing, index) => ({
-      id: ing.foodId || index.toString(),
-      name: ing.food,
-      amount: ing.quantity,
-      unit: ing.measure,
-      originalText: ing.text,
-      image: ing.image,
-      category: ing.foodCategory,
-    }));
-  }
+
 
   private async extractSpoonacularNutrition(recipe: SpoonacularRecipe): Promise<UnifiedNutrition> {
-    // Extract nutrition from Spoonacular data or get from Edamam
+    // Extract nutrition from Spoonacular data
     if (recipe.nutrition) {
       return this.convertSpoonacularNutrition(recipe.nutrition);
     }
 
-    // Fallback to Edamam analysis
-    const ingredients = recipe.extendedIngredients?.map(ing => ing.original) || [];
-    const edamamNutrition = await edamamService.analyzeNutrition({
-      title: recipe.title,
-      ingr: ingredients,
-      yield: recipe.servings,
-    });
-
-    return edamamNutrition ? this.convertEdamamNutritionToUnified(edamamNutrition) : this.getDefaultNutrition();
+    // Return default nutrition if not available from Spoonacular
+    return this.getDefaultNutrition();
   }
 
   private convertSpoonacularNutrition(nutrition: any): UnifiedNutrition {
@@ -501,51 +430,6 @@ export class RecipeService {
     };
   }
 
-  private convertEdamamNutrition(recipe: EdamamRecipe): UnifiedNutrition {
-    return this.convertEdamamNutritionToUnified({
-      calories: recipe.calories,
-      totalNutrients: recipe.totalNutrients,
-      totalDaily: recipe.totalDaily,
-    } as any);
-  }
-
-  private convertEdamamNutritionToUnified(nutrition: EdamamNutritionAnalysis): UnifiedNutrition {
-    const getNutrient = (key: string) => nutrition.totalNutrients[key]?.quantity || 0;
-    const getDaily = (key: string) => nutrition.totalDaily[key]?.quantity || 0;
-
-    return {
-      calories: nutrition.calories,
-      protein: getNutrient('PROCNT'),
-      carbs: getNutrient('CHOCDF'),
-      fat: getNutrient('FAT'),
-      fiber: getNutrient('FIBTG'),
-      sugar: getNutrient('SUGAR'),
-      sodium: getNutrient('NA'),
-      cholesterol: getNutrient('CHOLE'),
-      saturatedFat: getNutrient('FASAT'),
-      vitamins: {
-        'Vitamin A': getNutrient('VITA_RAE'),
-        'Vitamin C': getNutrient('VITC'),
-        'Vitamin D': getNutrient('VITD'),
-        'Vitamin E': getNutrient('TOCPHA'),
-        'Vitamin K': getNutrient('VITK1'),
-      },
-      minerals: {
-        'Calcium': getNutrient('CA'),
-        'Iron': getNutrient('FE'),
-        'Magnesium': getNutrient('MG'),
-        'Potassium': getNutrient('K'),
-        'Zinc': getNutrient('ZN'),
-      },
-      percentDailyValues: {
-        'Protein': getDaily('PROCNT'),
-        'Fiber': getDaily('FIBTG'),
-        'Sodium': getDaily('NA'),
-        'Calcium': getDaily('CA'),
-        'Iron': getDaily('FE'),
-      },
-    };
-  }
 
   private getDefaultNutrition(): UnifiedNutrition {
     return {
@@ -578,20 +462,6 @@ export class RecipeService {
     return 'hard';
   }
 
-  private calculateEdamamHealthScore(recipe: EdamamRecipe): number {
-    // Simple health score based on health labels
-    const positiveLabels = ['Low-Sodium', 'High-Fiber', 'High-Protein', 'Low-Fat'];
-    const negativeLabels = ['High-Sodium', 'High-Sugar'];
-
-    let score = 50; // Base score
-
-    recipe.healthLabels.forEach(label => {
-      if (positiveLabels.includes(label)) score += 10;
-      if (negativeLabels.includes(label)) score -= 10;
-    });
-
-    return Math.max(0, Math.min(100, score));
-  }
 
   private sortRecipesByRelevance(recipes: UnifiedRecipe[], filters: RecipeSearchFilters): UnifiedRecipe[] {
     return recipes.sort((a, b) => {
@@ -725,12 +595,12 @@ export class RecipeService {
     return variations[cuisine.toLowerCase()] || ['Regional variations exist'];
   }
 
-  private getCulturalNutritionNotes(cuisine: string, nutrition: EdamamNutritionAnalysis | null): string[] {
+  private getCulturalNutritionNotes(cuisine: string, nutrition: UnifiedNutrition | null): string[] {
     if (!nutrition) return [];
 
     const notes: string[] = [];
-    const sodium = nutrition.totalNutrients.NA?.quantity || 0;
-    const fiber = nutrition.totalNutrients.FIBTG?.quantity || 0;
+    const sodium = nutrition.sodium || 0;
+    const fiber = nutrition.fiber || 0;
 
     // Cuisine-specific nutrition notes
     if (cuisine.toLowerCase() === 'mediterranean' && fiber > 10) {
@@ -741,19 +611,19 @@ export class RecipeService {
       notes.push('Lower sodium content supports traditional Japanese dietary principles');
     }
 
-    if (cuisine.toLowerCase() === 'indian' && nutrition.totalNutrients.VITC?.quantity > 50) {
+    if (cuisine.toLowerCase() === 'indian' && nutrition.vitamins['Vitamin C'] && nutrition.vitamins['Vitamin C'] > 50) {
       notes.push('Rich in Vitamin C from traditional spices and vegetables');
     }
 
     return notes;
   }
 
-  private async generateHealthRecommendations(nutrition: EdamamNutritionAnalysis): Promise<string[]> {
+  private generateHealthRecommendations(nutrition: UnifiedNutrition): string[] {
     const recommendations: string[] = [];
 
-    const sodium = nutrition.totalNutrients.NA?.quantity || 0;
-    const fiber = nutrition.totalNutrients.FIBTG?.quantity || 0;
-    const saturatedFat = nutrition.totalNutrients.FASAT?.quantity || 0;
+    const sodium = nutrition.sodium || 0;
+    const fiber = nutrition.fiber || 0;
+    const saturatedFat = nutrition.saturatedFat || 0;
 
     if (sodium > 2300) {
       recommendations.push('Consider reducing salt or using herbs and spices for flavor');

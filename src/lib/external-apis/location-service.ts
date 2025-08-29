@@ -9,7 +9,7 @@ import { usdaService, type LocalHarvest, type SeasonalProduce } from './usda-ser
 export interface LocalFoodSource {
   id: string;
   name: string;
-  type: 'grocery' | 'supermarket' | 'specialty' | 'farmers_market' | 'organic';
+  type: 'grocery' | 'supermarket' | 'specialty' | 'farmers_market' | 'organic' | 'ethnic';
   address: string;
   location: {
     lat: number;
@@ -187,7 +187,7 @@ export class LocationService {
       
       // Get seasonal produce recommendations for this culture
       const culturalRecommendations = usdaService.getCulturalProduceRecommendations([culturalCuisine]);
-      const seasonalIngredients = culturalRecommendations.length > 0 
+      const seasonalIngredients = culturalRecommendations.length > 0 && culturalRecommendations[0]
         ? culturalRecommendations[0].produce 
         : [];
       
@@ -801,6 +801,7 @@ export class LocationService {
     while (remainingStops.length > 0) {
       const nearestIndex = this.findNearestStoreIndex(currentLocation, remainingStops);
       const nearestStop = remainingStops.splice(nearestIndex, 1)[0];
+      if (!nearestStop) break; // Safety check
       nearestStop.order = orderedStops.length + 1;
       orderedStops.push(nearestStop);
       currentLocation = nearestStop.store.location;
@@ -813,11 +814,13 @@ export class LocationService {
     location: { lat: number; lng: number },
     stores: ShoppingStop[]
   ): number {
+    if (stores.length === 0) return 0;
+    
     let nearestIndex = 0;
-    let nearestDistance = this.calculateDistance(location, stores[0].store.location);
+    let nearestDistance = this.calculateDistance(location, stores[0]!.store.location);
 
     for (let i = 1; i < stores.length; i++) {
-      const distance = this.calculateDistance(location, stores[i].store.location);
+      const distance = this.calculateDistance(location, stores[i]!.store.location);
       if (distance < nearestDistance) {
         nearestDistance = distance;
         nearestIndex = i;
@@ -862,7 +865,7 @@ export class LocationService {
     // Add return trip to user location
     if (stops.length > 0) {
       totalDistance += this.calculateDistance(
-        stops[stops.length - 1].store.location,
+        stops[stops.length - 1]!.store.location,
         userLocation
       );
     }

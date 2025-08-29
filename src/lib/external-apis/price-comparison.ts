@@ -469,7 +469,7 @@ export class PriceComparisonService {
   private getBestShoppingDay(): string {
     // Based on typical grocery store patterns
     const days = ['Tuesday', 'Wednesday', 'Thursday'];
-    return days[Math.floor(Math.random() * days.length)];
+    return days[Math.floor(Math.random() * days.length)]!;
   }
 
   private estimateShoppingTime(stores: Store[], items: any[]): number {

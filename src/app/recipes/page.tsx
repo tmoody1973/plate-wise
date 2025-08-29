@@ -1,42 +1,196 @@
-'use client';
+"use client";
 
+import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { DashboardLayout } from '@/components/layout/AppLayout';
-import { Button } from '@/components/ui/button';
+const RecipeList = dynamic(() => import('@/components/recipes/RecipeList').then(m => m.RecipeList), { ssr: false });
+const RecipeForm = dynamic(() => import('@/components/recipes/RecipeForm').then(m => m.RecipeForm), { ssr: false });
+const RecipeRecommendations = dynamic(() => import('@/components/recipes/RecipeRecommendations').then(m => m.RecipeRecommendations), { ssr: false });
+const RecipeInputModal = dynamic(() => import('@/components/recipes/RecipeInputModal').then(m => m.RecipeInputModal), { ssr: false });
+const SpoonacularSearch = dynamic(() => import('@/components/recipes/SpoonacularSearch').then(m => m.SpoonacularSearch), { ssr: false });
+const TavilySearch = dynamic(() => import('@/components/recipes/TavilySearch').then(m => m.TavilySearch), { ssr: false });
+import { useAuthContext } from '@/contexts/AuthContext';
+import type { Recipe } from '@/types';
+import type { CreateRecipeInput } from '@/lib/recipes/recipe-database-service';
+import type { SpoonacularRecipe } from '@/lib/external-apis/spoonacular-service';
 
 export default function RecipesPage() {
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showInputModal, setShowInputModal] = useState(false);
+  const [showSpoonacularSearch, setShowSpoonacularSearch] = useState(false);
+  const [discoverSource, setDiscoverSource] = useState<'spoonacular' | 'tavily'>('spoonacular');
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [parsedRecipe, setParsedRecipe] = useState<CreateRecipeInput | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const handleCreateRecipe = () => {
+    setShowInputModal(true);
+  };
+
+  const handleManualCreate = () => {
+    setShowCreateForm(true);
+    setEditingRecipe(null);
+    setParsedRecipe(null);
+  };
+
+  const handleRecipeParsed = (recipe: CreateRecipeInput) => {
+    setParsedRecipe(recipe);
+    setShowInputModal(false);
+    setShowCreateForm(true);
+  };
+
+  const handleEditRecipe = (recipe: Recipe) => {
+    setEditingRecipe(recipe);
+    setShowCreateForm(true);
+  };
+
+  const handleSaveRecipe = (recipe: Recipe) => {
+    // Recipe saved successfully
+    console.log('Recipe saved successfully:', recipe);
+    setShowCreateForm(false);
+    setEditingRecipe(null);
+    setParsedRecipe(null);
+    // Trigger recipe list refresh
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  const handleCancelForm = () => {
+    setShowCreateForm(false);
+    setEditingRecipe(null);
+  };
+
+  const handleAddToCollection = (recipeId: string) => {
+    // TODO: Implement collection selection modal
+    console.log('Add recipe to collection:', recipeId);
+  };
+
+  const handleRateRecipe = (recipeId: string) => {
+    // TODO: Implement rating modal
+    console.log('Rate recipe:', recipeId);
+  };
+
+  const handleSpoonacularRecipeSelect = (recipe: SpoonacularRecipe) => {
+    // Convert Spoonacular recipe to our format for editing/saving
+    const convertedRecipe: CreateRecipeInput = {
+      title: recipe.title,
+      description: recipe.summary,
+      culturalOrigin: recipe.cuisines || [],
+      cuisine: recipe.cuisines[0] || 'international',
+      ingredients: recipe.extendedIngredients?.map(ing => ({
+        id: ing.id.toString(),
+        name: ing.name,
+        amount: ing.amount,
+        unit: ing.unit,
+        culturalName: ing.nameClean || ing.name,
+        substitutes: [],
+        costPerUnit: 0,
+        availability: [],
+      })) || [],
+      instructions: recipe.analyzedInstructions?.flatMap(instruction =>
+        instruction.steps.map(step => ({
+          step: step.number,
+          description: step.step,
+        }))
+      ) || [],
+      metadata: {
+        servings: recipe.servings,
+        prepTime: recipe.preparationMinutes || 0,
+        cookTime: recipe.cookingMinutes || 0,
+        totalTime: recipe.readyInMinutes,
+        difficulty: 'medium' as const, // Default difficulty
+        culturalAuthenticity: 7, // Default score
+      },
+      tags: [...(recipe.cuisines || []), ...(recipe.dishTypes || [])],
+      source: 'spoonacular' as const,
+    };
+
+    setParsedRecipe(convertedRecipe);
+    setShowSpoonacularSearch(false);
+    setShowCreateForm(true);
+  };
+
   return (
     <ProtectedRoute>
       <DashboardLayout>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">📖</div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Recipe Collection</h1>
-            <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
-              Discover and save culturally authentic recipes from around the world. 
-              Search by cuisine, dietary restrictions, and budget constraints.
-            </p>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-                <div className="bg-cultural-primary/10 rounded-lg p-6">
-                  <h3 className="font-semibold text-cultural-primary mb-2">Cultural Recipes</h3>
-                  <p className="text-sm text-gray-600">Browse authentic recipes from Mediterranean, Asian, Latin, African, and Middle Eastern cuisines</p>
-                </div>
-                <div className="bg-cultural-secondary/10 rounded-lg p-6">
-                  <h3 className="font-semibold text-cultural-secondary mb-2">Smart Search</h3>
-                  <p className="text-sm text-gray-600">Filter by ingredients, cooking time, difficulty, and cultural authenticity ratings</p>
-                </div>
-                <div className="bg-cultural-accent/10 rounded-lg p-6">
-                  <h3 className="font-semibent text-cultural-accent mb-2">Cost Analysis</h3>
-                  <p className="text-sm text-gray-600">See estimated costs per serving and ingredient substitution suggestions</p>
-                </div>
-              </div>
-              <Button className="bg-cultural-primary hover:bg-cultural-primary/90 text-white">
-                Coming Soon - Recipe Discovery!
-              </Button>
+        {showCreateForm ? (
+          <RecipeForm
+            recipe={editingRecipe || undefined}
+            parsedRecipe={parsedRecipe || undefined}
+            isEditing={!!editingRecipe}
+            onSave={handleSaveRecipe}
+            onCancel={handleCancelForm}
+          />
+        ) : showSpoonacularSearch ? (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h1 className="text-3xl font-bold text-gray-900">Discover Recipes</h1>
+              <button
+                onClick={() => setShowSpoonacularSearch(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg transition-colors"
+              >
+                Back to My Recipes
+              </button>
             </div>
+            <div className="flex space-x-2">
+              <button onClick={() => setDiscoverSource('spoonacular')} className={`px-3 py-1 rounded ${discoverSource==='spoonacular'?'bg-gray-900 text-white':'border border-gray-300 text-gray-700'}`}>API</button>
+              <button onClick={() => setDiscoverSource('tavily')} className={`px-3 py-1 rounded ${discoverSource==='tavily'?'bg-gray-900 text-white':'border border-gray-300 text-gray-700'}`}>Web (Tavily)</button>
+            </div>
+            {discoverSource === 'spoonacular' ? (
+              <SpoonacularSearch onRecipeSelect={handleSpoonacularRecipeSelect} />
+            ) : (
+              <TavilySearch onImported={(recipe)=>{ setParsedRecipe(recipe); setShowCreateForm(true); }} />
+            )}
           </div>
-        </div>
+        ) : (
+          <div className="space-y-8">
+            <RecipeRecommendations className="mb-8" />
+            
+            {/* Recipe Source Tabs */}
+            <div className="flex items-center justify-between">
+              <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setShowSpoonacularSearch(false)}
+                  className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                    !showSpoonacularSearch
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  My Recipes
+                </button>
+                <button
+                  onClick={() => setShowSpoonacularSearch(true)}
+                  className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                    showSpoonacularSearch
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Discover New Recipes
+                </button>
+              </div>
+            </div>
+            
+            <RecipeList
+              key={refreshTrigger}
+              showSearch={true}
+              showCreateButton={true}
+              title={showSpoonacularSearch ? "Discover New Recipes" : "My Recipes"}
+              showUserRecipes={!showSpoonacularSearch}
+              emptyMessage={!showSpoonacularSearch ? "No recipes found. Create your first recipe to get started!" : "No recipes found. Try adjusting your search filters."}
+              onCreateRecipe={handleCreateRecipe}
+              onAddToCollection={handleAddToCollection}
+              onRateRecipe={handleRateRecipe}
+            />
+          </div>
+        )}
+        
+        <RecipeInputModal
+          isOpen={showInputModal}
+          onClose={() => setShowInputModal(false)}
+          onRecipeParsed={handleRecipeParsed}
+        />
       </DashboardLayout>
     </ProtectedRoute>
   );

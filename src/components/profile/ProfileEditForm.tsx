@@ -60,6 +60,12 @@ const editableSections: EditableSection[] = [
     icon: '👨‍🍳',
     fields: ['skillLevel', 'availableTime', 'equipment', 'mealPrepPreference'],
   },
+  {
+    id: 'shopping',
+    title: 'Shopping & Stores',
+    icon: '🛒',
+    fields: [],
+  },
 ];
 
 export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFormProps) {
@@ -68,6 +74,9 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
   const [formData, setFormData] = useState<Partial<UserProfile>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [storeZip, setStoreZip] = useState('');
+  const [stores, setStores] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedStore, setSelectedStore] = useState<{ id?: string; name?: string }>({});
 
   // Initialize form data when profile loads
   useEffect(() => {
@@ -117,6 +126,13 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
       
       console.log('Initialized form data:', initialFormData); // Debug log
       setFormData(initialFormData);
+      setStoreZip(
+        ((initialFormData as any).preferences?.defaultStore?.zip) ||
+        initialFormData.location?.zipCode ||
+        ''
+      );
+      const def = (initialFormData as any).preferences?.defaultStore;
+      if (def?.id) setSelectedStore({ id: def.id, name: def.name });
     }
   }, [profile]);
 
@@ -189,6 +205,91 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
     }
     setSaving(false);
   };
+
+  const fetchStores = async () => {
+    try {
+      const zip = storeZip.trim();
+      if (!zip) {
+        addToast({ type: 'warning', title: 'ZIP required', message: 'Enter a ZIP to search stores' });
+        return;
+      }
+      const res = await fetch(`/api/kroger/locations?zip=${encodeURIComponent(zip)}`);
+      if (!res.ok) throw new Error(`Store lookup failed: ${res.status}`);
+      const json = await res.json();
+      const list = (json.data || []).map((s: any) => ({ id: s.id as string, name: s.name as string }));
+      setStores(list);
+      if (list[0]) setSelectedStore(list[0]);
+    } catch (e) {
+      addToast({ type: 'error', title: 'Store search failed', message: 'Could not load stores for that ZIP' });
+    }
+  };
+
+  const saveDefaultStore = async () => {
+    try {
+      if (!selectedStore.id) {
+        addToast({ type: 'warning', title: 'No store selected', message: 'Choose a store first' });
+        return;
+      }
+      const updates: Partial<UserProfile> = {
+        preferences: {
+          ...(formData.preferences || ({} as any)),
+          // @ts-expect-error additional field stored in JSON
+          defaultStore: { id: selectedStore.id, name: selectedStore.name, zip: storeZip },
+        } as any,
+      };
+      const ok = await onUpdate(updates);
+      if (ok) addToast({ type: 'success', title: 'Default store saved', message: selectedStore.name || 'Saved' });
+    } catch (e) {
+      addToast({ type: 'error', title: 'Save failed', message: 'Could not save default store' });
+    }
+  };
+
+  const renderShoppingSection = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">ZIP Code</label>
+          <input
+            type="text"
+            value={storeZip}
+            onChange={(e) => setStoreZip(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="12345"
+          />
+        </div>
+        <div>
+          <button
+            onClick={fetchStores}
+            className="mt-6 w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100"
+          >Find Nearby Stores</button>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Default Store</label>
+          <select
+            value={selectedStore.id || ''}
+            onChange={(e) => setSelectedStore({ id: e.target.value, name: stores.find(s => s.id === e.target.value)?.name })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+          >
+            <option value="">Select a store</option>
+            {stores.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-gray-600">
+          {selectedStore.name ? `Selected: ${selectedStore.name}` : 'No store selected'}
+        </div>
+        <button
+          onClick={saveDefaultStore}
+          className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
+          disabled={!selectedStore.id}
+        >Save Default Store</button>
+      </div>
+      <p className="text-xs text-gray-500">This store is used for live price checks and shopping plans. You can change it anytime.</p>
+    </div>
+  );
 
   const renderPersonalSection = () => (
     <div className="space-y-4">
@@ -859,6 +960,8 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
         return renderNutritionSection();
       case 'cooking':
         return renderCookingSection();
+      case 'shopping':
+        return renderShoppingSection();
       default:
         return (
           <div className="text-center py-8 text-gray-500">
@@ -1012,8 +1115,17 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
               {profile.preferences?.languages?.length || 0} selected
             </span>
           </div>
+          <div>
+            <span className="font-medium text-blue-800">Default Store:</span>
+            <span className="ml-2 text-blue-700">
+              {((profile.preferences as any)?.defaultStore?.name) || 'Not set'}
+            </span>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
+// Section renderer
+// (Note: renderSection is defined within the component to capture local state.)

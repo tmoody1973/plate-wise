@@ -28,14 +28,24 @@ export interface SignInData {
  * Client-side authentication helpers
  */
 export class AuthHelpers {
-  private supabase = createClient();
+  // Lazily create client and fail gracefully when env is missing/misconfigured
+  private getClient() {
+    try {
+      return createClient();
+    } catch (e) {
+      console.warn('Supabase client unavailable (is NEXT_PUBLIC_SUPABASE_* set?)');
+      return null;
+    }
+  }
 
   /**
    * Sign up with email and password
    */
   async signUp({ email, password, name }: SignUpData): Promise<AuthResult> {
     try {
-      const { data, error } = await this.supabase.auth.signUp({
+      const supabase = this.getClient();
+      if (!supabase) return { success: false, error: new Error('Supabase not configured') };
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -64,7 +74,9 @@ export class AuthHelpers {
    */
   async signIn({ email, password }: SignInData): Promise<AuthResult> {
     try {
-      const { data, error } = await this.supabase.auth.signInWithPassword({
+      const supabase = this.getClient();
+      if (!supabase) return { success: false, error: new Error('Supabase not configured') };
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -87,7 +99,9 @@ export class AuthHelpers {
    */
   async signInWithProvider(provider: AuthProvider): Promise<AuthResult> {
     try {
-      const { data, error } = await this.supabase.auth.signInWithOAuth({
+      const supabase = this.getClient();
+      if (!supabase) return { success: false, error: new Error('Supabase not configured') };
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: provider as any,
         options: {
           redirectTo: `${window.location.origin}${AUTH_CONFIG.redirectUrls.signIn}`,
@@ -113,7 +127,9 @@ export class AuthHelpers {
    */
   async signOut(): Promise<AuthResult> {
     try {
-      const { error } = await this.supabase.auth.signOut();
+      const supabase = this.getClient();
+      if (!supabase) return { success: true };
+      const { error } = await supabase.auth.signOut();
 
       if (error) {
         return { error, success: false };
@@ -133,7 +149,9 @@ export class AuthHelpers {
    */
   async resetPassword(email: string): Promise<AuthResult> {
     try {
-      const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
+      const supabase = this.getClient();
+      if (!supabase) return { success: false, error: new Error('Supabase not configured') };
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}${AUTH_CONFIG.redirectUrls.passwordReset}`,
       });
 
@@ -155,7 +173,9 @@ export class AuthHelpers {
    */
   async updatePassword(password: string): Promise<AuthResult> {
     try {
-      const { data, error } = await this.supabase.auth.updateUser({
+      const supabase = this.getClient();
+      if (!supabase) return { success: false, error: new Error('Supabase not configured') };
+      const { data, error } = await supabase.auth.updateUser({
         password,
       });
 
@@ -177,10 +197,23 @@ export class AuthHelpers {
    */
   async getCurrentUser(): Promise<User | null> {
     try {
-      const { data: { user } } = await this.supabase.auth.getUser();
+      const supabase = this.getClient();
+      if (!supabase) return null;
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      // AuthSessionMissingError is expected when no user is signed in
+      if (error && error.name === 'AuthSessionMissingError') {
+        return null;
+      }
+      
+      if (error) {
+        console.error('AuthHelpers: Unexpected error:', error);
+        return null;
+      }
+      
       return user;
     } catch (error) {
-      console.error('Error getting current user:', error);
+      console.error('AuthHelpers: Exception getting current user:', error);
       return null;
     }
   }
@@ -189,7 +222,12 @@ export class AuthHelpers {
    * Listen to auth state changes
    */
   onAuthStateChange(callback: (user: User | null) => void) {
-    return this.supabase.auth.onAuthStateChange((event, session) => {
+    const supabase = this.getClient();
+    if (!supabase) {
+      // Return a no-op subscription when client is unavailable
+      return { data: { subscription: { unsubscribe() {} } } } as any;
+    }
+    return supabase.auth.onAuthStateChange((event, session) => {
       callback(session?.user ?? null);
     });
   }

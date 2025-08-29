@@ -268,7 +268,6 @@ export function DataExportSection({ userId, profile }: DataExportSectionProps) {
           'Amazon Bedrock (AI processing)',
           'Kroger API (pricing data)',
           'Spoonacular API (recipe data)',
-          'Edamam API (nutrition data)',
         ],
       },
       rights: {

@@ -517,7 +517,7 @@ export class VoiceInterfaceService {
       'zh-CN': '欢迎来到PlateWise！我是您的烹饪助手。您可以要求我搜索食谱、添加配料或帮助烹饪。',
     };
 
-    return messages[language] || messages['en-US'];
+    return messages[language] || messages['en-US']!;
   }
 
   private getGoodbyeMessage(language: string, culturalContext: string): string {
@@ -530,7 +530,7 @@ export class VoiceInterfaceService {
       'zh-CN': '感谢您使用PlateWise！祝您烹饪愉快！',
     };
 
-    return messages[language] || messages['en-US'];
+    return messages[language] || messages['en-US']!;
   }
 
   private getErrorMessage(language: string): string {
@@ -543,7 +543,7 @@ export class VoiceInterfaceService {
       'zh-CN': '抱歉，我没有理解。请重试或说"帮助"寻求协助。',
     };
 
-    return messages[language] || messages['en-US'];
+    return messages[language] || messages['en-US']!;
   }
 
   private getHelpText(language: string): string {
@@ -556,7 +556,7 @@ export class VoiceInterfaceService {
       'zh-CN': '我可以帮助您：搜索食谱、将配料添加到购物清单、设置烹饪计时器以及导航应用程序。请自然地说话！',
     };
 
-    return helpTexts[language] || helpTexts['en-US'];
+    return helpTexts[language] || helpTexts['en-US']!;
   }
 
   private mapDestinationToRoute(destination: string): string {

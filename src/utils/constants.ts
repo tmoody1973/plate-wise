@@ -196,7 +196,7 @@ export const CACHE_TTL = {
 export const API_ENDPOINTS = {
   KROGER: 'https://api.kroger.com/v1',
   SPOONACULAR: 'https://api.spoonacular.com',
-  EDAMAM: 'https://api.edamam.com',
+
   ELEVENLABS: 'https://api.elevenlabs.io/v1',
   GOOGLE_PLACES: 'https://maps.googleapis.com/maps/api/place',
   USDA: 'https://www.usda.gov/api'

@@ -4,20 +4,25 @@ A culturally-aware, AI-driven meal planning platform that helps families and ind
 
 ## Overview
 
-PlateWise combines advanced cost analysis, cultural heritage preservation, nutritional optimization, and community features to create a holistic meal planning and grocery shopping experience. The platform uses Amazon Bedrock AI to generate personalized meal plans that respect cultural authenticity while staying within budget constraints.
+PlateWise combines advanced cost analysis, cultural heritage preservation, nutritional optimization, and community features to create a holistic meal planning and grocery shopping experience. The platform uses Amazon Bedrock AI to generate personalized meal plans that respect cultural authenticity while staying within budget constraints, integrated with comprehensive external APIs for real-time pricing, recipe discovery, and cultural food research.
 
 ## 🚀 Current Status
 
-PlateWise is actively under development with a comprehensive foundation in place:
+PlateWise has reached a significant milestone with a comprehensive foundation and advanced features:
 
-- ✅ **Authentication System** - Complete Supabase Auth integration with email confirmation
-- ✅ **Profile Setup Wizard** - Multi-step onboarding with cultural preferences
-- ✅ **Database Schema** - Full PostgreSQL schema with RLS policies
-- ✅ **Design System** - Bento-style UI with cultural theme support
-- ✅ **Landing Page** - Modern, responsive design with cultural imagery
-- ✅ **AI Integration** - Amazon Bedrock service with Claude 3.5 Sonnet
-- ✅ **API Services** - Complete framework for external service integrations
-- 🔄 **Core Features** - Recipe management, meal planning, budget tracking (in progress)
+- ✅ **Authentication System** - Complete Supabase Auth with email confirmation, password reset, and OAuth callbacks
+- ✅ **Profile Setup Wizard** - 7-step onboarding covering personal info, cultural preferences, dietary restrictions, budget settings, nutritional goals, cooking profile, and review
+- ✅ **Database Schema** - Full PostgreSQL schema with RLS policies and cultural metadata support
+- ✅ **Design System** - Bento-style UI with 5 cultural themes (Mediterranean, Asian, Latin American, African, Middle Eastern)
+- ✅ **Landing Page** - Modern, responsive design with cultural imagery and theme switching
+- ✅ **AI Integration** - Amazon Bedrock service with Claude 3.5 Sonnet for culturally-aware meal planning
+- ✅ **Complete API Layer** - 8 integrated external services with circuit breakers, rate limiting, and caching
+- ✅ **Recipe Management System** - Full CRUD operations with cultural authenticity scoring, scaling, and analysis
+- ✅ **Voice Integration** - ElevenLabs multilingual text-to-speech with cultural pronunciation
+- ✅ **Local Store Discovery** - Google Places and USDA integration for grocery stores and farmer markets
+- ✅ **Price Comparison Engine** - Kroger API integration with real-time pricing and coupon discovery
+- ✅ **Debug Tools** - Comprehensive debugging components for recipe management and authentication
+- 🔄 **Meal Planning & Budget Tracking** - AI-powered meal plans with cost optimization (in progress)
 
 ## Key Features
 
@@ -44,12 +49,33 @@ PlateWise is actively under development with a comprehensive foundation in place
 - **Multi-language Translation** - Preserve cultural context across languages
 - **Voice Integration** - ElevenLabs text-to-speech with cultural pronunciation
 - **Circuit Breaker & Rate Limiting** - Robust AI service reliability
+- **Comprehensive Recipe Management** - Full CRUD operations with cultural authenticity scoring
+
+### 🏪 Local Store Discovery & Shopping
+- **Grocery Store Finder** - Google Places integration for local store discovery with cultural specialty filtering
+- **Price Comparison** - Real-time price analysis across multiple stores with route optimization
+- **Specialty Market Discovery** - Find ethnic markets and specialty stores for authentic ingredients
+- **Farmer Market Integration** - USDA data for local farmer markets and seasonal produce
+- **Shopping List Optimization** - AI-powered shopping route planning with cost analysis
+- **Coupon Integration** - Kroger API integration for real-time coupon and deal discovery
+
+### 📚 Recipe Management
+- **Comprehensive Recipe Database** - Full CRUD operations with Supabase integration
+- **Cultural Authenticity Tracking** - Traditional vs. adapted recipe classification
+- **Recipe Collections** - Organize recipes into custom collections
+- **Advanced Search & Filtering** - Search by culture, cuisine, difficulty, time, and authenticity
+- **Multi-Source Search** - Integrated search across Spoonacular and internal recipe database
+- **Community Ratings** - Rate recipes for taste, cost-effectiveness, and cultural authenticity
+- **Recipe Scaling** - Intelligent ingredient scaling with unit conversions
+- **Cost Analysis** - Real-time cost calculations with store price comparisons
 
 ### 👥 Community Features
-- Recipe sharing with cultural authenticity ratings
-- Social following and community recommendations
-- Local store discovery and farmer market integration
-- Cultural food tradition preservation
+- **Recipe Sharing** - Share recipes with cultural authenticity ratings and community feedback
+- **Recipe Collections** - Create and share curated recipe collections with cultural themes
+- **Community Ratings** - Multi-dimensional rating system for taste, cost, and authenticity
+- **Cultural Preservation** - Community-driven validation of traditional recipes and techniques
+- **Local Food Discovery** - Find specialty markets and farmer markets with cultural focus
+- **Social Following** - Follow other users and discover culturally-relevant recipes
 
 ### 🎨 Design System
 - **Bento Grid Layout** - Modern card-based interface
@@ -73,18 +99,21 @@ PlateWise is actively under development with a comprehensive foundation in place
 - **Recipe Intelligence**: AI-powered parsing and ingredient analysis
 
 ### External Integrations
-- **Grocery Data**: Kroger Catalog API for real-time pricing
-- **Recipe Database**: Spoonacular API for recipe discovery
-- **Nutrition Data**: Edamam API for nutritional analysis
-- **Location Services**: Google Places API for store discovery
-- **Government Data**: USDA API for food composition data
+- **Grocery Data**: Kroger Catalog API for real-time pricing and product availability
+- **Recipe Database**: Spoonacular API for recipe discovery with cultural filtering
+- **Voice Services**: ElevenLabs API for multilingual text-to-speech with cultural pronunciation
+- **Location Services**: Google Places API for grocery store and specialty market discovery
+- **Government Data**: USDA API for food composition, farmer markets, and seasonal produce data
+- **Price Comparison**: Multi-store price analysis with coupon integration
+- **Voice Interface**: Complete voice command system for hands-free cooking assistance
 
 ### Infrastructure & Performance
-- **Caching**: Redis for API response caching and performance
-- **Reliability**: Circuit breaker patterns and rate limiting
-- **Testing**: Jest, React Testing Library, accessibility testing
-- **Deployment**: Vercel with automatic deployments
-- **Monitoring**: Built-in error tracking and performance monitoring
+- **Caching**: Redis for API response caching and performance optimization
+- **Reliability**: Circuit breaker patterns, rate limiting, and health monitoring
+- **Testing**: Jest, React Testing Library, accessibility testing, and cultural authenticity validation
+- **Deployment**: Vercel with automatic deployments and environment management
+- **Monitoring**: Built-in error tracking, performance monitoring, and API usage analytics
+- **Database**: Supabase PostgreSQL with Row Level Security and cultural metadata support
 
 ## Project Structure
 
@@ -104,16 +133,21 @@ platewise/
 │   │   ├── auth/                 # Authentication pages & flows
 │   │   ├── dashboard/            # Main application dashboard
 │   │   ├── profile/              # Profile management & setup
+│   │   ├── recipes/              # Recipe browsing and management
 │   │   ├── budget/               # Budget tracking pages
 │   │   ├── shopping/             # Shopping list management
 │   │   ├── help/                 # Help and support pages
+│   │   ├── debug/                # Debug and development tools
 │   │   └── page.tsx              # Landing page
 │   ├── components/               # React components
 │   │   ├── auth/                 # Authentication components
 │   │   ├── dashboard/            # Dashboard bento cards
+│   │   ├── debug/                # Debug components (RecipeDebug)
 │   │   ├── landing/              # Landing page components
 │   │   ├── layout/               # Layout and navigation
 │   │   ├── profile/              # Profile setup wizard (7 steps)
+│   │   ├── recipes/              # Recipe components (cards, forms, search, scaling)
+│   │   ├── search/               # Search components
 │   │   ├── bento/                # Bento grid system components
 │   │   └── ui/                   # Reusable UI components
 │   ├── contexts/                 # React contexts (Auth, Theme)
@@ -121,8 +155,9 @@ platewise/
 │   ├── lib/                      # Core services and utilities
 │   │   ├── ai/                   # Amazon Bedrock AI service
 │   │   ├── auth/                 # Authentication helpers
-│   │   ├── external-apis/        # External API integrations
+│   │   ├── external-apis/        # External API integrations (8 services)
 │   │   ├── profile/              # Profile management services
+│   │   ├── recipes/              # Recipe management services (database, scaling, analysis)
 │   │   ├── supabase/             # Supabase client configuration
 │   │   ├── themes/               # Cultural theme system
 │   │   └── favicon/              # Favicon management
@@ -163,8 +198,6 @@ KROGER_CLIENT_SECRET=your_kroger_client_secret
 
 # Recipe & Nutrition APIs
 SPOONACULAR_API_KEY=your_spoonacular_api_key
-EDAMAM_APP_ID=your_edamam_app_id
-EDAMAM_APP_KEY=your_edamam_app_key
 USDA_API_KEY=your_usda_api_key
 
 # Voice & Location APIs
@@ -179,7 +212,7 @@ NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=your_nextauth_secret
 ```
 
-**Note**: Copy `.env.example` to `.env.local` and update with your actual API keys. The application will work with just Supabase and AWS Bedrock credentials for core functionality.
+**Note**: Copy `.env.example` to `.env.local` and update with your actual API keys. The application will work with just Supabase and AWS Bedrock credentials for core functionality. External API keys enable enhanced features like real-time pricing, voice assistance, local store discovery, and expanded recipe databases.
 
 ### Installation Steps
 
@@ -255,6 +288,37 @@ PlateWise leverages Amazon Bedrock with Claude 3.5 Sonnet to provide intelligent
 - **Cultural Prompting** - Specialized prompts that include cultural context and authenticity requirements
 - **Fallback Systems** - Ensure application functionality even when AI services are unavailable
 
+## 📚 Recipe Management System
+
+PlateWise includes a comprehensive recipe management system with full CRUD operations, cultural authenticity tracking, and intelligent scaling capabilities:
+
+### Database Features
+- **Recipe CRUD Operations** - Create, read, update, and delete recipes with proper authorization
+- **Cultural Authenticity Tracking** - Classification system for traditional, adapted, inspired, and fusion recipes
+- **Recipe Collections** - Organize recipes into custom collections (public or private)
+- **Advanced Search & Filtering** - Search by culture, cuisine, difficulty, cooking time, and authenticity level
+- **Community Ratings** - Multi-dimensional rating system for taste, cost-effectiveness, and cultural authenticity
+- **Recipe Scaling** - Intelligent ingredient scaling with proper unit conversions
+- **Cost Analysis Integration** - Real-time cost calculations with store price comparisons
+- **Debug Tools** - Built-in debugging components for troubleshooting recipe operations and authentication
+
+### Recipe Components
+- **RecipeCard** - Beautiful recipe display with cultural theming and cost analysis
+- **RecipeForm** - Comprehensive recipe creation and editing interface with cultural context
+- **RecipeSearch** - Advanced search with cultural, dietary, and authenticity filters
+- **RecipeList** - Responsive grid layout with infinite scroll and cultural categorization
+- **RecipeScaling** - Interactive ingredient scaling with intelligent unit conversion
+- **RecipeInputModal** - Quick recipe input from text, URL, or voice with AI parsing
+- **RecipeRecommendations** - AI-powered recipe suggestions based on cultural preferences and budget
+- **RecipeDebug** - Development tool for debugging recipe operations, authentication, and database interactions
+
+### Cultural Features
+- **Authenticity Classification** - Traditional vs. adapted recipe categorization
+- **Cultural Context** - Historical background and significance for traditional recipes
+- **Regional Variations** - Support for different authentic versions of the same dish
+- **Ingredient Substitution Tracking** - Monitor cultural impact of ingredient changes
+- **Traditional Cooking Methods** - Preserve and document traditional techniques
+
 ## 🌍 Cultural Sensitivity
 
 PlateWise is built with deep respect for cultural food traditions. Our development follows strict guidelines to:
@@ -268,28 +332,36 @@ PlateWise is built with deep respect for cultural food traditions. Our developme
 
 ## 🔌 API Integrations
 
-PlateWise integrates with multiple external services to provide comprehensive meal planning and shopping features:
+PlateWise integrates with multiple external services to provide comprehensive meal planning, shopping, and local discovery features:
 
 ### Grocery & Shopping APIs
-- **Kroger Catalog API** - Real-time product pricing and availability
-- **Google Places API** - Store discovery and specialty market location
-- **Price Comparison Service** - Multi-store price analysis and optimization
+- **Kroger Catalog API** - Real-time product pricing, availability, and coupon integration
+- **Google Places API** - Grocery store and specialty market discovery with cultural filtering
+- **Price Comparison Service** - Multi-store price analysis with route optimization
+- **Location Service** - Unified local food sourcing with farmer market integration
 
 ### Recipe & Nutrition APIs
-- **Spoonacular API** - Extensive recipe database with cultural filtering
-- **Edamam API** - Comprehensive nutritional analysis and dietary information
-- **USDA API** - Government food composition and safety data
+- **Spoonacular API** - Extensive recipe database with cultural cuisine filtering
+- **USDA API** - Government food composition, farmer markets, and seasonal produce data
+- **Recipe Service** - Unified recipe search across multiple sources with cultural context
+- **Internal Recipe Database** - Comprehensive CRUD operations with cultural authenticity tracking
 
 ### AI & Voice Services
-- **Amazon Bedrock** - Claude 3.5 Sonnet for intelligent meal planning
-- **ElevenLabs API** - Multi-language text-to-speech with cultural pronunciation
-- **Voice Interface** - Recipe parsing from voice input and audio guidance
+- **Amazon Bedrock** - Claude 3.5 Sonnet for culturally-aware meal planning
+- **ElevenLabs API** - Multi-language text-to-speech with cultural pronunciation guides
+- **Voice Interface** - Complete voice command system for hands-free cooking assistance
+- **AI Health Monitoring** - Service availability checking and intelligent fallbacks
 
-### Service Reliability Features
-- **Circuit Breaker Pattern** - Automatic failover for unreliable APIs
-- **Rate Limiting** - Intelligent request throttling and queue management
-- **Caching Layer** - Redis-based caching with appropriate TTL strategies
-- **Error Recovery** - Graceful degradation when external services are unavailable
+### Service Architecture
+- **Circuit Breaker Pattern** - Automatic failover for unreliable APIs with exponential backoff
+- **Rate Limiting** - Intelligent request throttling with usage statistics tracking
+- **Caching Layer** - Redis-based caching with cultural context preservation
+- **Error Recovery** - Graceful degradation with meaningful user feedback
+- **API Health Service** - Unified health checking across all external services
+- **Configuration Validation** - Automatic validation of API keys and service availability
+- **Location Services** - Unified local food sourcing with Google Places and USDA integration
+- **Voice Interface Service** - Complete multilingual voice command system with ElevenLabs
+- **Price Comparison Engine** - Real-time multi-store price analysis with route optimization
 
 ## 🧪 Testing
 
@@ -309,14 +381,26 @@ npm run test:e2e
 # Test cultural authenticity features
 npm run test:cultural
 
+# Test recipe management system
+npm run test:recipes
+
 # Test API integrations (requires API keys)
 npm run test:integration
+
+# Test external API health and circuit breakers
+npm run test:api-health
+
+# Test voice integration and local services
+npm run test:voice
 ```
 
 ### Testing Standards
-- **Unit Tests** - 80%+ coverage for business logic and AI integration
+- **Unit Tests** - 80%+ coverage for business logic, AI integration, and recipe management
 - **Cultural Testing** - Community validation for cultural authenticity features
-- **API Testing** - Mock external services for reliable testing
+- **API Testing** - Mock external services for reliable testing with circuit breaker validation
+- **Recipe Testing** - Comprehensive testing of CRUD operations and cultural authenticity scoring
+- **Voice Testing** - ElevenLabs integration testing for multilingual text-to-speech
+- **Integration Testing** - End-to-end testing of external API integrations
 - **Accessibility Testing** - WCAG 2.1 AA compliance verification
 - **Performance Testing** - Lighthouse scores >90 Performance, >95 Accessibility
 
@@ -330,12 +414,16 @@ npm run test:integration
 - **Performance** - Lighthouse scores >90 (Performance), >95 (Accessibility)
 
 ### API Integration Patterns
-- **Error Handling** - Comprehensive retry logic and circuit breakers
-- **Caching Strategy** - Redis-based caching with intelligent TTL management
-- **Rate Limiting** - Respect API limits with exponential backoff
-- **Cultural Context** - Include cultural information in all AI prompts
-- **Service Reliability** - Circuit breaker patterns for external API failures
-- **Data Normalization** - Consistent data formats across different APIs
+- **Error Handling** - Comprehensive retry logic with exponential backoff and circuit breakers
+- **Caching Strategy** - Redis-based caching with intelligent TTL management and cultural context preservation
+- **Rate Limiting** - Respect API limits with usage statistics and intelligent throttling
+- **Cultural Context** - Include cultural information in all AI prompts and recipe analysis
+- **Service Reliability** - Circuit breaker patterns with health monitoring and automatic failover
+- **Data Normalization** - Consistent data formats across different APIs with cultural metadata preservation
+- **Voice Integration** - Multi-language voice commands with cultural pronunciation support
+- **Location Services** - Unified local food sourcing with specialty market discovery
+- **Price Optimization** - Real-time price comparison with route optimization and coupon integration
+- **Recipe Management** - Comprehensive CRUD operations with cultural authenticity scoring and scaling
 
 ## 🚀 Deployment
 
@@ -381,9 +469,12 @@ This project prioritizes cultural sensitivity and authenticity. Contributors sho
 ### Development Workflow
 1. Fork the repository and create a feature branch
 2. Follow TypeScript strict mode and ESLint rules
-3. Write comprehensive tests for new features
+3. Write comprehensive tests for new features (including recipe management and API integrations)
 4. Test cultural authenticity features with appropriate communities
-5. Submit pull request with detailed description and cultural impact assessment
+5. Validate external API integrations with proper error handling and circuit breakers
+6. Test recipe CRUD operations and cultural authenticity scoring
+7. Test voice integration and local store discovery features
+8. Submit pull request with detailed description and cultural impact assessment
 
 ### Cultural Review Process
 - All cultural content undergoes community review
@@ -399,17 +490,23 @@ This project prioritizes cultural sensitivity and authenticity. Contributors sho
 
 ### Current Phase (Q1 2025)
 - ✅ Core authentication and profile system
-- ✅ Amazon Bedrock AI integration
+- ✅ Amazon Bedrock AI integration with cultural context
 - ✅ Cultural theme system and bento UI
-- 🔄 Recipe management and meal planning features
-- 🔄 Budget tracking and optimization tools
+- ✅ Recipe management system with CRUD operations
+- ✅ External API integration layer (8 services)
+- ✅ Recipe database with cultural authenticity tracking
+- ✅ Voice interface foundation with ElevenLabs integration
+- ✅ Local store discovery with Google Places and USDA integration
+- 🔄 Meal planning and budget tracking features
+- 🔄 Shopping list generation with store integration
 
 ### Next Phase (Q2 2025)
-- 📋 Shopping list generation and store integration
-- 📋 Community features and recipe sharing
-- 📋 Voice interface and multi-language support
-- 📋 Mobile app development
-- 📋 Advanced cultural authenticity features
+- 📋 Complete meal planning workflow with AI optimization
+- 📋 Advanced budget tracking with real-time price monitoring
+- 📋 Community features and recipe sharing platform
+- 📋 Mobile app development with offline capabilities
+- 📋 Enhanced voice commands and cooking assistance
+- 📋 Cultural expert review system for authenticity validation
 
 ### Future Enhancements
 - 📋 Nutritionist and cultural expert partnerships

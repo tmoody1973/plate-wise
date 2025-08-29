@@ -346,7 +346,7 @@ export class ElevenLabsService {
     this.checkUsageLimits(text.length);
 
     const culturalVoice = this.culturalVoices[language] || this.culturalVoices['en-US'];
-    const voiceId = culturalVoice.voiceId;
+    const voiceId = culturalVoice?.voiceId || 'pNInz6obpgDQGcFmaJgB'; // Default voice
 
     const request: TTSRequest = {
       text: this.preprocessTextForCulture(text, language),
@@ -389,7 +389,7 @@ export class ElevenLabsService {
     this.checkUsageLimits(text.length);
 
     const culturalVoice = this.culturalVoices[language] || this.culturalVoices['en-US'];
-    const voiceId = culturalVoice.voiceId;
+    const voiceId = culturalVoice?.voiceId || 'pNInz6obpgDQGcFmaJgB'; // Default voice
 
     const request: TTSRequest = {
       text: this.preprocessTextForCulture(text, language),
@@ -625,7 +625,7 @@ export class ElevenLabsService {
       case 'search_recipe':
         // Extract recipe name or cuisine
         const recipeMatch = text.match(/(?:recipe for|find|search for)\s+(.+)/i);
-        if (recipeMatch) {
+        if (recipeMatch && recipeMatch[1]) {
           parameters.query = recipeMatch[1].trim();
         }
         break;
@@ -633,7 +633,7 @@ export class ElevenLabsService {
       case 'add_ingredient':
         // Extract ingredient name
         const ingredientMatch = text.match(/(?:add|include)\s+(.+?)(?:\s+to|$)/i);
-        if (ingredientMatch) {
+        if (ingredientMatch && ingredientMatch[1]) {
           parameters.ingredient = ingredientMatch[1].trim();
         }
         break;
@@ -641,7 +641,7 @@ export class ElevenLabsService {
       case 'set_timer':
         // Extract time duration
         const timeMatch = text.match(/(\d+)\s*(minute|minutes|hour|hours|second|seconds)/i);
-        if (timeMatch) {
+        if (timeMatch && timeMatch[1] && timeMatch[2]) {
           parameters.duration = parseInt(timeMatch[1]);
           parameters.unit = timeMatch[2].toLowerCase();
         }
@@ -650,7 +650,7 @@ export class ElevenLabsService {
       case 'navigate':
         // Extract destination
         const navMatch = text.match(/(?:go to|open|show me)\s+(.+)/i);
-        if (navMatch) {
+        if (navMatch && navMatch[1]) {
           parameters.destination = navMatch[1].trim();
         }
         break;
