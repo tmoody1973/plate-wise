@@ -19,6 +19,8 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { DashboardLayout } from '@/components/layout/AppLayout';
 import dynamic from 'next/dynamic';
 const RecipeScaling = dynamic(() => import('@/components/recipes/RecipeScaling').then(m => m.RecipeScaling), { ssr: false });
+const GroceryPricing = dynamic(() => import('@/components/recipes/GroceryPricing').then(m => m.GroceryPricing), { ssr: false });
+const PricingPanel = dynamic(() => import('@/components/recipes/PricingPanel').then(m => m.PricingPanel), { ssr: false });
 import { recipeService } from '@/lib/recipes/recipe-service';
 import { useProfileSetup } from '@/hooks/useProfileSetup';
 import type { Recipe } from '@/types';
@@ -42,11 +44,28 @@ export default function RecipeDetailPage() {
   const [zipInput, setZipInput] = useState<string>('');
   const [stores, setStores] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedStore, setSelectedStore] = useState<{ id?: string; name?: string }>({});
-  const [pricingDetails, setPricingDetails] = useState<Array<{ name: string; unitPrice: number; estimatedCost: number; product?: any; topCandidates?: any[]; confidence?: number; explain?: any; packages?: number; packageSize?: string }>>([]);
+  const [findingStores, setFindingStores] = useState(false);
+  const [pricingDetails, setPricingDetails] = useState<Array<{ name: string; unitPrice: number; estimatedCost: number; product?: any; topCandidates?: any[]; confidence?: number; explain?: any; packages?: number; packageSize?: string; portionCost?: number }>>([]);
   const [openCandidateIndex, setOpenCandidateIndex] = useState<number | null>(null);
   const [openExplainIndex, setOpenExplainIndex] = useState<number | null>(null);
   const [openQuickIndex, setOpenQuickIndex] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchLoading, setSearchLoading] = useState<boolean>(false);
+  const [searchOffset, setSearchOffset] = useState<number>(0);
+  const [pricedOnly, setPricedOnly] = useState<boolean>(true);
   const [ephemeralPreferred, setEphemeralPreferred] = useState<Array<{ name: string; productId: string }>>([]);
+  const jsonRef = React.useRef<any>(null);
+  const quickRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Close chooser with ESC
+  useEffect(() => {
+    if (openQuickIndex === null) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenQuickIndex(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [openQuickIndex])
 
   const normalizedTokens = (name: string) => name.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
   const highlightMatch = (text: string, tokens: string[]) => {
@@ -62,6 +81,37 @@ export default function RecipeDetailPage() {
       </>
     );
   };
+
+  // Perform typed search within modal; supports pagination via offset
+  const performSearch = async (idx: number, append = false) => {
+    try {
+      if (idx == null || !recipe) return
+      setSearchLoading(true)
+      const baseName = recipe?.ingredients[idx]?.name || ''
+      const payload: any = { name: baseName, query: searchQuery || baseName, limit: 12, offset: append ? searchOffset : 0, pricedOnly };
+      if (selectedStore.id) payload.locationId = selectedStore.id; else if (zipInput || profile?.location?.zipCode) payload.zip = (zipInput || profile?.location?.zipCode);
+      const resp = await fetch('/api/pricing/alternatives', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (resp.ok) {
+        const json = await resp.json();
+        const top = json?.data?.topCandidates || [];
+        setPricingDetails(prev => prev.map((r, i) => {
+          if (i !== idx) return r
+          const merged = append ? [ ...(r.topCandidates||[]), ...top ] : top
+          return { ...r, topCandidates: merged }
+        }));
+        setSearchOffset(prev => append ? prev + (top.length || 0) : (top.length || 0))
+      } else {
+        const text = await resp.text().catch(()=> '')
+        console.warn('[pricing] search failed', resp.status, text)
+        addToast({ type: 'error', title: 'Search failed', message: 'Try a different query.' })
+      }
+    } catch (e) {
+      console.warn('search error', e)
+      addToast({ type: 'error', title: 'Search error', message: 'Network issue while searching.' })
+    } finally {
+      setSearchLoading(false)
+    }
+  }
 
   useEffect(() => {
     loadRecipe();
@@ -164,7 +214,7 @@ export default function RecipeDetailPage() {
           ...ephemeralPreferred,
         ],
       };
-      const res = await fetch('/api/pricing', {
+      const res = await fetch('/api/pricing/ingredients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -210,12 +260,23 @@ export default function RecipeDetailPage() {
   const useCandidate = async (rowIndex: number, candidate: any) => {
     try {
       if (!user) return alert('Please sign in to save preferences.');
-      const storeId = selectedStore.id || (profile as any)?.preferences?.defaultStore?.id;
+      // If candidate is tied to a different store (from nearby fallback), honor that
+      const mappedStoreId = candidate.storeId || selectedStore.id || (profile as any)?.preferences?.defaultStore?.id;
+      const mappedStoreName = candidate.storeName || selectedStore.name || (profile as any)?.preferences?.defaultStore?.name;
+      const storeId = mappedStoreId;
       if (!storeId) {
         alert('Select a store first.');
         return;
       }
-      const ingredientName = recipe!.ingredients[rowIndex].name;
+      // Optimistically update the UI with the selected candidate
+      setPricingDetails(prev => prev.map((r, i) => {
+        if (i !== rowIndex) return r
+        const next = { ...r }
+        next.product = { description: candidate.description, items: [{ price: { regular: candidate.price }, size: candidate.size }], images: candidate.image ? [{ url: candidate.image }] : [] }
+        next.estimatedCost = typeof candidate.price === 'number' && candidate.price > 0 ? candidate.price : r.estimatedCost
+        return next
+      }))
+      const ingredientName = recipe?.ingredients[rowIndex]?.name || '';
       const key = normalizeName(ingredientName);
       const prefs = (profile as any)?.preferences || {};
       const updatedMappings = {
@@ -236,7 +297,15 @@ export default function RecipeDetailPage() {
       });
       setOpenCandidateIndex(null);
       setOpenQuickIndex(null);
-      await refreshLivePrices([{ name: ingredientName, productId: candidate.productId }]);
+      // If we picked a different store, switch the selectedStore so pricing matches the chosen price context
+      if (candidate.storeId && candidate.storeId !== selectedStore.id) {
+        setSelectedStore({ id: candidate.storeId, name: mappedStoreName })
+      }
+      if (ingredientName) {
+        await refreshLivePrices([{ name: ingredientName, productId: candidate.productId }]);
+      } else {
+        await refreshLivePrices();
+      }
       addToast({ type: 'success', title: 'Updated pricing', message: `Using: ${candidate.description || 'selected product'}` });
     } catch (e) {
       console.warn('Failed to use candidate', e);
@@ -244,8 +313,46 @@ export default function RecipeDetailPage() {
     }
   };
 
+  // Fetch alternatives using our pricing API and open quick review chooser
+  const fetchAlternativesFor = async (idx: number) => {
+    try {
+      console.debug('[pricing] search alternatives click', { idx })
+      if (pricingDetails[idx]?.topCandidates && pricingDetails[idx].topCandidates.length > 0) {
+        setSearchQuery(recipe?.ingredients[idx]?.name || '')
+        setOpenQuickIndex(idx);
+        return;
+      }
+      // seed search with ingredient name
+      setSearchQuery(recipe?.ingredients[idx]?.name || '')
+      setSearchOffset(0)
+      const payload: any = { name: (recipe?.ingredients[idx]?.name || ''), limit: 12, pricedOnly };
+      if (selectedStore.id) payload.locationId = selectedStore.id; else if (zipInput || profile?.location?.zipCode) payload.zip = (zipInput || profile?.location?.zipCode);
+      const resp = await fetch('/api/pricing/alternatives', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (resp.ok) {
+        const json = await resp.json();
+        const top = json?.data?.topCandidates || [];
+        setPricingDetails(prev => prev.map((r, i) => i === idx ? { ...r, topCandidates: top } : r));
+        setSearchOffset(top.length || 0)
+      } else {
+        const text = await resp.text().catch(()=>'')
+        console.warn('[pricing] alternatives failed', resp.status, text)
+        addToast({ type: 'error', title: 'Search failed', message: 'Could not load alternatives for this item.' })
+      }
+    } catch (e) {
+      console.warn('Failed to fetch alternatives', e);
+      addToast({ type: 'error', title: 'Search failed', message: 'Network or API error while searching.' })
+    } finally {
+      setOpenQuickIndex(idx);
+      // Bring the quick review section into view for the user
+      setTimeout(() => {
+        try { quickRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
+      }, 0);
+    }
+  };
+
   const fetchStores = async () => {
     try {
+      setFindingStores(true)
       const zip = (zipInput || profile?.location?.zipCode || '').trim();
       if (!zip) {
         alert('Enter a ZIP code to find nearby stores');
@@ -260,6 +367,8 @@ export default function RecipeDetailPage() {
     } catch (e) {
       console.warn('Failed to fetch stores', e);
       alert('Could not load stores. Check ZIP and try again.');
+    } finally {
+      setFindingStores(false)
     }
   };
 
@@ -316,34 +425,34 @@ export default function RecipeDetailPage() {
       // e.g., "Prep Time: 15 min" or "prep: 1 hr 20 min"
       const re1 = new RegExp(`${label}\\s*:?\\s*(\\d+)\\s*(min|minutes)`, 'i');
       const m1 = text.match(re1);
-      if (m1) return parseInt(m1[1], 10);
+      if (m1) return parseInt(m1[1]!, 10);
       const re2 = new RegExp(`${label}\\s*:?\\s*(\\d+)\\s*(h|hr|hour|hours)(?:\\s*(\\d+)\\s*(min|minutes))?`, 'i');
       const m2 = text.match(re2);
-      if (m2) return toMinutes(parseInt(m2[1], 10), m2[3] ? parseInt(m2[3], 10) : 0);
+      if (m2) return toMinutes(parseInt(m2[1]!, 10), m2[3] ? parseInt(m2[3]!, 10) : 0);
       return undefined;
     };
 
     const findTotal = (): number | undefined => {
       const ready = text.match(/ready\\s*in\\s*:?\\s*(\\d+)\\s*(min|minutes)/i);
-      if (ready) return parseInt(ready[1], 10);
+      if (ready) return parseInt(ready[1]!, 10);
       const totalMin = text.match(/total\\s*time\\s*:?\\s*(\\d+)\\s*(min|minutes)/i);
-      if (totalMin) return parseInt(totalMin[1], 10);
+      if (totalMin) return parseInt(totalMin[1]!, 10);
       const totalHour = text.match(/total\\s*time\\s*:?\\s*(\\d+)\\s*(h|hr|hour|hours)(?:\\s*(\\d+)\\s*(min|minutes))?/i);
-      if (totalHour) return toMinutes(parseInt(totalHour[1], 10), totalHour[3] ? parseInt(totalHour[3], 10) : 0);
+      if (totalHour) return toMinutes(parseInt(totalHour[1]!, 10), totalHour[3] ? parseInt(totalHour[3]!, 10) : 0);
       return undefined;
     };
 
     const findServings = (): number | undefined => {
       const m = text.match(/(servings?|serves)\\s*:?\\s*(\\d+)/i);
-      if (m) return parseInt(m[2], 10);
+      if (m) return parseInt(m[2]!, 10);
       return undefined;
     };
 
     const findCostPerServing = (): number | undefined => {
       const withServing = text.match(/(cost|price)[^\n]*?(per\\s*serving)[^\n]*?(\$?\d+(?:\.\d{1,2})?)/i);
-      if (withServing) return num(withServing[3].replace('$', ''));
+      if (withServing) return num(String(withServing[3] || '').replace('$', ''));
       const plain = text.match(/\$\s?(\d+(?:\.\d{1,2})?)\s*(?:per\\s*serving)/i);
-      if (plain) return num(plain[1]);
+      if (plain) return num(plain[1]!);
       return undefined;
     };
 
@@ -514,6 +623,43 @@ export default function RecipeDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Grocery Pricing (Overview) */}
+      {pricingDetails.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <GroceryPricing
+            recipe={recipe}
+            items={pricingDetails.map((row, i) => ({
+              id: i,
+              original: `${recipe.ingredients[i]?.amount ?? ''} ${recipe.ingredients[i]?.unit ?? ''} ${recipe.ingredients[i]?.name ?? row.name}`.trim(),
+              matched: row.product?.description || 'No match found',
+              priceLabel: (() => {
+                const p = row.product?.items?.find((it:any)=>it?.price?.promo || it?.price?.regular)?.price
+                const price = p?.promo ?? p?.regular
+                if (typeof price === 'number' && row.packageSize) return `$${price.toFixed(2)} per ${row.packageSize}`
+                return undefined
+              })(),
+              estimatedCost: row.estimatedCost || 0,
+              needsReview: (row.confidence ?? 1) < 0.5 || !row.product,
+              confidence: row.confidence ?? 1,
+              packages: row.packages,
+              packageSize: row.packageSize,
+              portionCost: row.portionCost,
+            }))}
+            zipValue={zipInput}
+            selectedStoreName={selectedStore.name || (profile as any)?.preferences?.defaultStore?.name}
+            isDefaultStore={Boolean(selectedStore.id && selectedStore.id === (profile as any)?.preferences?.defaultStore?.id)}
+            isSearchingStore={findingStores}
+            refreshing={refreshingPrices}
+            onZipChange={setZipInput}
+            onFindStore={fetchStores}
+            onSetDefault={saveDefaultStore}
+            onRefreshPrices={() => refreshLivePrices()}
+            onSearchItem={(idx) => fetchAlternativesFor(idx)}
+            onReviewItem={(idx) => fetchAlternativesFor(idx)}
+          />
+        </div>
+      )}
 
       {/* Ingredients */}
       <div className="bg-white border border-gray-200 rounded-lg p-6">
@@ -858,7 +1004,7 @@ export default function RecipeDetailPage() {
                   </thead>
                   <tbody>
                     {pricingDetails.map((row: any, idx) => (
-                      <>
+                      <React.Fragment key={`frag_${idx}`}>
                         <tr key={`row_${idx}`} className="border-t border-gray-100">
                           <td className="py-2 pr-4 text-gray-900">{row.name}</td>
                           <td className="py-2 pr-4 text-gray-600">
@@ -896,6 +1042,12 @@ export default function RecipeDetailPage() {
                                   {row.packages} × {row.packageSize}
                                 </span>
                               )}
+                              {typeof row.portionCost === 'number' && (
+                                <span className="text-xs text-gray-500">portion ~${row.portionCost.toFixed(2)}</span>
+                              )}
+                              {typeof row.packagePrice === 'number' && (
+                                <span className="text-xs text-gray-500">full pack ~${row.packagePrice.toFixed(2)}</span>
+                              )}
                               <span>${row.estimatedCost.toFixed(2)}</span>
                             </div>
                           </td>
@@ -905,7 +1057,7 @@ export default function RecipeDetailPage() {
                                 if (!(row.topCandidates && row.topCandidates.length > 0)) {
                                   // Fetch alternatives on demand
                                   try {
-                                    const payload: any = { name: recipe!.ingredients[idx].name };
+                                    const payload: any = { name: (recipe?.ingredients[idx]?.name || '') };
                                     if (selectedStore.id) payload.locationId = selectedStore.id; else if (zipInput || profile?.location?.zipCode) payload.zip = (zipInput || profile?.location?.zipCode);
                                     const resp = await fetch('/api/pricing/alternatives', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
                                     if (resp.ok) {
@@ -962,7 +1114,7 @@ export default function RecipeDetailPage() {
                             </td>
                           </tr>
                         )}
-                      </>
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -971,32 +1123,66 @@ export default function RecipeDetailPage() {
             )}
           </div>
 
-          {/* Quick Review Popover (Overview) */}
-          {activeTab === 'overview' && openQuickIndex !== null && pricingDetails[openQuickIndex] && (
-            <div className="mt-4 p-4 border border-blue-200 bg-blue-50 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-sm text-blue-900">Review match for <span className="font-medium">{pricingDetails[openQuickIndex].name}</span></div>
-                <button onClick={() => setOpenQuickIndex(null)} className="text-xs text-blue-700 hover:text-blue-900">Close</button>
-              </div>
-              <div className="space-y-2">
-                {(pricingDetails[openQuickIndex].topCandidates || []).map((c: any, j: number) => (
-                  <div key={`quick_${openQuickIndex}_${j}`} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      {c.image && <img src={c.image} alt="" className="w-8 h-8 object-cover rounded" />}
-                      <div>
-                        <div className="text-gray-900 text-sm">{highlightMatch(c.description || 'Product', normalizedTokens(pricingDetails[openQuickIndex].name))}</div>
-                        <div className="text-xs text-gray-500">{c.size || ''} {c.category ? `• ${c.category}` : ''}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="text-sm text-gray-900">${(c.price || 0).toFixed(2)}</div>
-                      <button onClick={() => useCandidate(openQuickIndex, c)} className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700">Use this</button>
+          {/* Quick Review Modal */}
+          <div ref={quickRef} />
+          {openQuickIndex !== null && pricingDetails[openQuickIndex] && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="absolute inset-0 bg-black/40" onClick={() => setOpenQuickIndex(null)} />
+              <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl mx-4 p-5 sm:p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1 pr-4">
+                    <div className="text-xl font-semibold text-gray-900">Review match for <span className="text-blue-700">{pricingDetails[openQuickIndex].name}</span></div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <input
+                        value={searchQuery}
+                        onChange={(e)=>setSearchQuery(e.target.value)}
+                        onKeyDown={(e)=>{ if (e.key==='Enter') performSearch(openQuickIndex,false) }}
+                        placeholder="Search Kroger products"
+                        className="w-full sm:w-80 px-3 py-2 border border-gray-300 rounded-lg"
+                      />
+                      <button
+                        onClick={()=>performSearch(openQuickIndex,false)}
+                        disabled={searchLoading}
+                        className="px-4 py-2 rounded-lg bg-blue-600 text-white disabled:opacity-60"
+                      >{searchLoading? 'Searching…' : 'Search'}</button>
+                      <label className="ml-2 inline-flex items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" checked={pricedOnly} onChange={(e)=>{ setPricedOnly(e.target.checked); performSearch(openQuickIndex,false) }} />
+                        Priced only
+                      </label>
                     </div>
                   </div>
-                ))}
-                {(!pricingDetails[openQuickIndex].topCandidates || pricingDetails[openQuickIndex].topCandidates.length === 0) && (
-                  <div className="text-xs text-blue-800">No alternatives available. Try changing the store or refreshing prices.</div>
-                )}
+                  <button onClick={() => setOpenQuickIndex(null)} className="text-sm text-gray-600 hover:text-gray-900">Close</button>
+                </div>
+                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                  {(() => { const current = pricingDetails[openQuickIndex]!; return (current.topCandidates || []).map((c: any, j: number) => (
+                    <div key={`modal_cand_${openQuickIndex}_${j}`} className="flex items-center justify-between py-2">
+                      <div className="flex items-center space-x-3 min-w-0">
+                        {c.image && <img src={c.image} alt="" className="w-12 h-12 object-cover rounded" />}
+                        <div className="min-w-0">
+                          <div className="text-gray-900 text-base truncate">{highlightMatch(c.description || 'Product', normalizedTokens(searchQuery || current.name))}</div>
+                          <div className="text-xs text-gray-500 truncate">{c.size || ''} {c.category ? `• ${c.category}` : ''}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        {c.storeName && (
+                          <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700 border border-gray-200" title="Store providing this price">{c.storeName}</span>
+                        )}
+                        <div className="text-base font-medium text-gray-900">{(c.price || 0) > 0 ? `$${(c.price || 0).toFixed(2)}` : 'Not priced'}</div>
+                        <button onClick={() => useCandidate(openQuickIndex!, c)} className="px-4 py-2 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700">Use this</button>
+                      </div>
+                    </div>
+                  )) })()}
+                  {(() => { const current = pricingDetails[openQuickIndex]!; return (!current.topCandidates || current.topCandidates.length === 0) })() && (
+                    <div className="text-sm text-gray-700">Fetching alternatives…</div>
+                  )}
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={()=>performSearch(openQuickIndex,true)}
+                    disabled={searchLoading}
+                    className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                  >{searchLoading ? 'Loading…' : 'Load more'}</button>
+                </div>
               </div>
             </div>
           )}
@@ -1027,7 +1213,35 @@ export default function RecipeDetailPage() {
 
             <div className="p-6">
               {activeTab === 'overview' && renderOverviewTab()}
-              {activeTab === 'scaling' && <RecipeScaling recipe={recipe} />}
+              {activeTab === 'scaling' && (
+                pricingDetails.length > 0 ? (
+                  <PricingPanel
+                    items={pricingDetails.map((row, i) => ({
+                      id: i,
+                      original: `${recipe.ingredients[i]?.amount ?? ''} ${recipe.ingredients[i]?.unit ?? ''} ${recipe.ingredients[i]?.name ?? row.name}`.trim(),
+                      matched: row.product?.description || 'No match found',
+                      priceLabel: (() => {
+                        const p = row.product?.items?.find((it:any)=>it?.price?.promo || it?.price?.regular)?.price
+                        const price = p?.promo ?? p?.regular
+                        if (typeof price === 'number' && row.packageSize) return `$${price.toFixed(2)} per ${row.packageSize}`
+                        return undefined
+                      })(),
+                      estimatedCost: row.estimatedCost || 0,
+                      needsReview: (row.confidence ?? 1) < 0.5 || !row.product,
+                      confidence: row.confidence ?? 1,
+                      packages: row.packages,
+                      packageSize: row.packageSize,
+                      portionCost: row.portionCost,
+                      packagePrice: row.packagePrice,
+                    }))}
+                    totalEstimated={pricingDetails.reduce((s, r) => s + (r.estimatedCost || 0), 0)}
+                    onReview={(idx) => fetchAlternativesFor(idx)}
+                    onSearch={(idx) => fetchAlternativesFor(idx)}
+                  />
+                ) : (
+                  <RecipeScaling recipe={recipe} />
+                )
+              )}
               {activeTab === 'reviews' && renderReviewsTab()}
             </div>
           </div>

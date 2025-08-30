@@ -15,6 +15,16 @@ const SYNONYMS: Record<string, string[]> = {
   eggplant: ['aubergine'],
   bell: ['capsicum'],
   chili: ['chilli','chile'],
+  // Nuts & seeds common synonyms / alt spellings
+  'pine': ['pignoli','pignolia','pine nut','pine nuts','pignolia nuts','pignoli nuts'],
+  'pine nut': ['pignoli','pignolia','pine nuts'],
+  'pine nuts': ['pignoli','pignolia','pine nut'],
+  'sunflower seeds': ['sunflower seed'],
+  'pumpkin seeds': ['pepitas','pumpkin seed'],
+  'sesame seeds': ['sesame seed','tahini seeds'],
+  almonds: ['almond'],
+  cashews: ['cashew'],
+  walnuts: ['walnut'],
 }
 
 const FORM_HINTS = ['canned','low sodium','unsalted','boneless','skinless','ground','whole']
@@ -86,8 +96,8 @@ export function sizeProximity(requestQty: number, requestUnit: string, product: 
   if (!size) return 0.2
   const m = size.match(/([\d.]+)\s*(oz|ounce|ounces|lb|pound|g|gram|kg|kilogram|ml|milliliter|l|liter|ct|count)/i)
   if (!m) return 0.2
-  const qty = parseFloat(m[1])
-  const unit = m[2].toLowerCase()
+  const qty = parseFloat(m[1]!)
+  const unit = String(m[2]).toLowerCase()
   const toG = (q: number, u: string) => {
     switch (u) {
       case 'g': case 'gram': return q
@@ -154,6 +164,7 @@ export function scoreProduct(ingredient: IngredientInput, product: any, category
 
 export function scoreProductDetailed(ingredient: IngredientInput, product: any, categoryHint?: string): ScoreBreakdown {
   const title = product?.description || product?.items?.[0]?.description || ''
+  const brand = (product?.brand || '').toLowerCase()
   const sim = tokenSetSimilarity(ingredient.name, title)
   const price = product?.items?.[0]?.price?.promo ?? product?.items?.[0]?.price?.regular ?? 0
   const availability = String(product?.items?.[0]?.inventory?.stockLevel || 'unknown')
@@ -175,7 +186,12 @@ export function scoreProductDetailed(ingredient: IngredientInput, product: any, 
       flavorPenalty -= 0.3
     }
   }
-  const score = 0.5*sim + 0.2*size + catBoost + availabilityPenalty + priceWeight + (promo ? 0.05 : 0) + wrongSoupPenalty + flavorPenalty
+  // Brand boost for generics (budget friendly)
+  let brandBoost = 0
+  if (brand.includes('kroger') || brand.includes('simple truth')) {
+    brandBoost += 0.08
+  }
+  const score = 0.5*sim + 0.2*size + catBoost + availabilityPenalty + priceWeight + (promo ? 0.05 : 0) + wrongSoupPenalty + flavorPenalty + brandBoost
   return {
     titleSim: sim,
     sizeProximity: size,

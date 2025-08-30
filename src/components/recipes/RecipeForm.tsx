@@ -51,6 +51,18 @@ export function RecipeForm({ recipe, parsedRecipe, onSave, onCancel, isEditing =
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showVoiceInput, setShowVoiceInput] = useState(false);
 
+  const withUniqueIds = (ings: any[]): any[] => {
+    const used = new Set<string>();
+    return (ings || []).map((ing, i) => {
+      let id = String(ing.id || `ing_${i+1}`);
+      if (used.has(id)) {
+        id = `ing_${i+1}_${Math.random().toString(36).slice(2,7)}`;
+      }
+      used.add(id);
+      return { ...ing, id };
+    });
+  };
+
   // Initialize form with existing recipe data or parsed recipe data
   useEffect(() => {
     if (recipe) {
@@ -59,7 +71,7 @@ export function RecipeForm({ recipe, parsedRecipe, onSave, onCancel, isEditing =
         description: recipe.description,
         culturalOrigin: recipe.culturalOrigin,
         cuisine: recipe.cuisine,
-        ingredients: recipe.ingredients,
+        ingredients: withUniqueIds(recipe.ingredients),
         instructions: recipe.instructions,
         nutritionalInfo: recipe.nutritionalInfo,
         costAnalysis: recipe.costAnalysis,
@@ -75,7 +87,7 @@ export function RecipeForm({ recipe, parsedRecipe, onSave, onCancel, isEditing =
         description: parsedRecipe.description || prev.description,
         culturalOrigin: parsedRecipe.culturalOrigin || prev.culturalOrigin,
         cuisine: parsedRecipe.cuisine || prev.cuisine,
-        ingredients: (parsedRecipe.ingredients && parsedRecipe.ingredients.length > 0) ? parsedRecipe.ingredients : prev.ingredients,
+        ingredients: (parsedRecipe.ingredients && parsedRecipe.ingredients.length > 0) ? withUniqueIds(parsedRecipe.ingredients) : prev.ingredients,
         instructions: (parsedRecipe.instructions && parsedRecipe.instructions.length > 0) ? parsedRecipe.instructions : prev.instructions,
         metadata: {
           servings: parsedRecipe.metadata?.servings ?? prev.metadata.servings,

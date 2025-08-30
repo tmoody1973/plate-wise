@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
-import { AuthProvider } from '@/contexts/AuthContext'
-import { ThemeProvider } from '@/contexts/ThemeContext'
+import Providers from '@/components/Providers'
 import './globals.css'
 
 const inter = Inter({ 
@@ -65,13 +64,11 @@ export default function RootLayout({
         <link rel="manifest" href="/site.webmanifest" />
       </head>
       <body className={inter.className}>
-        <ThemeProvider>
-          <AuthProvider>
-            <div id="root">
-              {children}
-            </div>
-          </AuthProvider>
-        </ThemeProvider>
+        <Providers>
+          <div id="root">
+            {children}
+          </div>
+        </Providers>
       </body>
     </html>
   )

@@ -233,7 +233,6 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
       const updates: Partial<UserProfile> = {
         preferences: {
           ...(formData.preferences || ({} as any)),
-          // @ts-expect-error additional field stored in JSON
           defaultStore: { id: selectedStore.id, name: selectedStore.name, zip: storeZip },
         } as any,
       };

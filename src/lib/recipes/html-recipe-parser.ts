@@ -8,7 +8,7 @@ function extractJsonLdBlocks(html: string): any[] {
   const re = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
   let m: RegExpExecArray | null
   while ((m = re.exec(html)) !== null) {
-    const raw = m[1].trim()
+    const raw = (m[1] || '').trim()
     try {
       const json = JSON.parse(raw)
       blocks.push(json)
@@ -46,8 +46,8 @@ function parseIsoDurationToMinutes(iso?: string): number {
   // Very simple PT#H#M pattern parser
   const m = iso.match(/P(T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?/i)
   if (!m) return 0
-  const h = m[2] ? parseInt(m[2], 10) : 0
-  const mm = m[3] ? parseInt(m[3], 10) : 0
+  const h = m[2] ? parseInt(m[2]!, 10) : 0
+  const mm = m[3] ? parseInt(m[3]!, 10) : 0
   return h * 60 + mm
 }
 
@@ -68,16 +68,16 @@ function parseIngredientLine(line: string): { amount: number; unit: string; name
       const [a,b] = qtyStr.trim().split(' ')
       if (b && b.includes('/')) {
         const [n,d] = b.split('/')
-        qty = parseInt(a,10) + (parseFloat(n)/parseFloat(d))
+        qty = parseInt(a || '0',10) + (parseFloat(n || '0')/parseFloat(d || '1'))
       } else {
         const [n,d] = qtyStr.split('/')
-        qty = parseFloat(n)/parseFloat(d)
+        qty = parseFloat(n || '0')/parseFloat(d || '1')
       }
     } else {
       qty = parseFloat(qtyStr)
     }
-    const unit = (m[6] || '').toLowerCase()
-    const name = normalizeText(m[7] || '')
+    const unit = String(m[6] || '').toLowerCase()
+    const name = normalizeText(String(m[7] || ''))
     return { amount: isFinite(qty) ? qty : 1, unit: unit || 'each', name }
   }
   return { amount: 1, unit: 'each', name: txt }
@@ -85,9 +85,9 @@ function parseIngredientLine(line: string): { amount: number; unit: string; name
 
 function pickTitle(html: string): string {
   const t = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
-  if (t) return normalizeText(t[1])
+  if (t) return normalizeText(t[1] || '')
   const h1 = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)
-  if (h1) return normalizeText(h1[1])
+  if (h1) return normalizeText(h1[1] || '')
   return 'Imported Recipe'
 }
 
@@ -104,9 +104,11 @@ function extractSectionList(html: string, headingRegex: RegExp): string[] | null
   if (list) {
     const items: string[] = []
     const liRe = /<li[^>]*>([\s\S]*?)<\/li>/gi
+    const listHtml = String(list[2] || '')
     let m: RegExpExecArray | null
-    while ((m = liRe.exec(list[2])) !== null) {
-      items.push(normalizeText(stripTags(m[1])))
+    while ((m = liRe.exec(listHtml)) !== null) {
+      const mm = m as RegExpExecArray
+      items.push(normalizeText(stripTags(String(mm[1] || ''))))
     }
     if (items.length) return items
   }
@@ -154,7 +156,7 @@ export function parseRecipeFromHtml(url: string, html: string): { recipe?: Creat
         const servings = (() => {
           const y = normalizeText(r.recipeYield || '')
           const m = y.match(/(\d+)/)
-          return m ? parseInt(m[1], 10) : 4
+          return m ? parseInt(m[1]!, 10) : 4
         })()
 
         const recipe: CreateRecipeInput = {
@@ -226,4 +228,3 @@ export function parseRecipeFromHtml(url: string, html: string): { recipe?: Creat
     return { reason: e?.message || 'parse-error' }
   }
 }
-

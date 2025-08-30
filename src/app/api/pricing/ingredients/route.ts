@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getKrogerAccessToken } from '@/lib/external-apis/kroger-oauth'
 import { buildSearchTerms, classifyCategory, scoreProductDetailed, type IngredientInput } from '@/lib/external-apis/kroger-matching'
 import { krogerService } from '@/lib/external-apis/kroger-service'
+import { getProductByIdV2, searchProductsV2, normalizeV2ToV1Like } from '@/lib/external-apis/kroger-catalog-v2'
 
 // moved to kroger-matching.ts
 
@@ -22,8 +23,8 @@ function parseSize(size?: string): { qty: number; unit: string } | null {
   // Support fluid ounces as volume and ounces as weight
   const m = size.match(/([\d.]+)\s*(fl\s*oz|floz|oz|ounce|ounces|lb|pound|g|gram|kg|kilogram|ml|milliliter|l|liter|ct|count)/i)
   if (!m) return null
-  const qty = parseFloat(m[1])
-  const unit = m[2].toLowerCase()
+  const qty = parseFloat(m[1]!)
+  const unit = String(m[2]).toLowerCase()
   return { qty, unit }
 }
 
@@ -92,8 +93,20 @@ function toCulinaryGrams(qty: number, unit: string): number | null {
   }
 }
 
-function estimateCost(ing: IngredientInput, product: any, servings?: number): { unitPrice: number; estimatedCost: number; packages?: number; packageSize?: string } {
-  const price = product?.items?.[0]?.price?.regular ?? product?.price?.regular ?? 0
+function getProductPrice(product: any): number | null {
+  const items = Array.isArray(product?.items) ? product.items : []
+  for (const it of items) {
+    const p = it?.price
+    const val = (p?.promo ?? p?.regular)
+    if (typeof val === 'number' && !isNaN(val)) return val
+  }
+  // Some payloads put price at root
+  const root = product?.price?.regular
+  return (typeof root === 'number' && !isNaN(root)) ? root : null
+}
+
+function estimateCost(ing: IngredientInput, product: any, servings?: number): { unitPrice: number; estimatedCost: number; packages?: number; packageSize?: string; portionCost?: number; packagePrice?: number } {
+  const price = getProductPrice(product) ?? 0
   if (!price) return { unitPrice: 0, estimatedCost: 0 }
 
   const sizeInfo = parseSize(product?.items?.[0]?.size || product?.size)
@@ -107,20 +120,22 @@ function estimateCost(ing: IngredientInput, product: any, servings?: number): { 
     const prodG = toGrams(ps.qty, ps.unit)
     if (ingG && prodG && prodG > 0) {
       const packages = Math.ceil(ingG / prodG)
-      const estimatedCost = packages * price
       const unitPrice = price / prodG
       const label = `${ps.qty} ${ps.unit}`
-      return { unitPrice, estimatedCost, packages, packageSize: label }
+      const portionCost = (ingG / prodG) * price
+      const estimatedCost = portionCost
+      return { unitPrice, estimatedCost, packages, packageSize: label, portionCost, packagePrice: price }
     }
     // Try volume next
     const ingMl = toCulinaryMl(ing.amount, unit)
     const prodMl = toMilliliters(ps.qty, ps.unit)
     if (ingMl && prodMl && prodMl > 0) {
       const packages = Math.ceil(ingMl / prodMl)
-      const estimatedCost = packages * price
       const unitPrice = price / prodMl
       const label = `${ps.qty} ${ps.unit}`
-      return { unitPrice, estimatedCost, packages, packageSize: label }
+      const portionCost = (ingMl / prodMl) * price
+      const estimatedCost = portionCost
+      return { unitPrice, estimatedCost, packages, packageSize: label, portionCost, packagePrice: price }
     }
     // Count-based packages (e.g., "1 ct")
     if (ps.unit === 'ct' || ps.unit === 'count') {
@@ -133,16 +148,17 @@ function estimateCost(ing: IngredientInput, product: any, servings?: number): { 
       }
       const perPack = Math.max(1, Math.ceil(ps.qty))
       const packages = Math.ceil(reqPieces / perPack)
-      const estimatedCost = packages * price
       const unitPrice = price / perPack
       const label = `${ps.qty} ${ps.unit}`
-      return { unitPrice, estimatedCost, packages, packageSize: label }
+      const portionCost = (reqPieces / perPack) * price
+      const estimatedCost = portionCost
+      return { unitPrice, estimatedCost, packages, packageSize: label, portionCost, packagePrice: price }
     }
   }
 
   // Fallback: treat as each/unit
   const qty = Math.max(1, Math.ceil(ing.amount))
-  return { unitPrice: price, estimatedCost: price * qty, packages: qty, packageSize: 'each' }
+  return { unitPrice: price, estimatedCost: price * qty, packages: qty, packageSize: 'each', portionCost: price * qty, packagePrice: price }
 }
 
 export async function POST(req: NextRequest) {
@@ -156,6 +172,7 @@ export async function POST(req: NextRequest) {
     if (!ingredients.length) return NextResponse.json({ error: 'ingredients required' }, { status: 400 })
 
     const useMock = (process.env.NEXT_PUBLIC_KROGER_MOCK ?? 'true') !== 'false' || !process.env.KROGER_CLIENT_ID || !process.env.KROGER_CLIENT_SECRET
+    const useV2 = (process.env.USE_KROGER_CATALOG_V2 ?? 'false') === 'true'
 
     // Mock fallback path (no credentials or explicitly enabled mock)
     if (useMock) {
@@ -188,7 +205,7 @@ export async function POST(req: NextRequest) {
         })
       }
       const costPerServing = totalCost / Math.max(servings, 1)
-      return NextResponse.json({ data: { perIngredient, totalCost, costPerServing, locationId: locationId || 'mock-location', storeName: 'Mock Kroger' } })
+      return NextResponse.json({ data: { perIngredient, totalCost, costPerServing, locationId: locationId || 'mock-location', storeName: 'Mock Kroger', source: 'mock' } })
     }
 
     let token: string
@@ -217,22 +234,62 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const perIngredient: Array<{ name: string; unitPrice: number; estimatedCost: number; product?: any; topCandidates?: any[] }> = []
+    const perIngredient: Array<{ name: string; unitPrice: number; estimatedCost: number; product?: any; topCandidates?: any[]; packages?: number; packageSize?: string; portionCost?: number; packagePrice?: number; confidence?: number; explain?: any }> = []
     let totalCost = 0
 
     for (const ing of ingredients) {
       // Preferred product path: fetch exact product by id if provided for this ingredient
       const pref = preferred.find(p => p?.name?.toLowerCase?.().trim() === ing.name.toLowerCase().trim() && p.productId)
       if (pref && pref.productId && locationId) {
-        const url = `https://api.kroger.com/v1/products?filter.productId=${encodeURIComponent(pref.productId)}&filter.locationId=${encodeURIComponent(locationId)}&filter.limit=1`
-        const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } })
-        if (resp.ok) {
-          const data = await resp.json()
-          const prod = data?.data?.[0]
+        let prod: any = null
+        if (useV2) {
+          const v2 = await getProductByIdV2(pref.productId, locationId)
+          if (v2) prod = normalizeV2ToV1Like(v2)
+        }
+        if (!prod) {
+          const url = `https://api.kroger.com/v1/products?filter.productId=${encodeURIComponent(pref.productId)}&filter.locationId=${encodeURIComponent(locationId)}&filter.limit=1`
+          const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } })
+          if (resp.ok) {
+            const data = await resp.json()
+            prod = data?.data?.[0]
+          }
+        }
+        if (prod) {
           if (prod) {
-      const { unitPrice, estimatedCost, packages, packageSize } = estimateCost(ing, prod, servings)
+            // Fallback: if this product has no price at this store, search by its description
+            if (!getProductPrice(prod)) {
+              const desc = (prod?.description || '').split(',')[0].split('-')[0].trim()
+              if (desc) {
+                let fbProd: any = null
+                if (useV2) {
+                  try {
+                    const v2 = await searchProductsV2({ term: desc, locationId, limit: 5 })
+                    fbProd = v2.map(normalizeV2ToV1Like).find(p => getProductPrice(p))
+                  } catch {}
+                }
+                if (!fbProd) {
+                  const fallbackParams = [
+                    `filter.term=${encodeURIComponent(desc)}`,
+                    `filter.locationId=${encodeURIComponent(locationId)}`,
+                    'filter.limit=5',
+                  ].join('&')
+                  const fb = await fetch(`https://api.kroger.com/v1/products?${fallbackParams}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } })
+                  if (fb.ok) {
+                    const fbJson = await fb.json()
+                    fbProd = (fbJson?.data || []).find((p: any) => getProductPrice(p))
+                  }
+                }
+                if (fbProd) {
+                    const { unitPrice, estimatedCost, packages, packageSize, packagePrice } = estimateCost(ing, fbProd, servings)
+                    totalCost += estimatedCost
+                    perIngredient.push({ name: ing.name, unitPrice, estimatedCost, product: fbProd, topCandidates: [], packages, packageSize, packagePrice })
+                    continue
+                }
+              }
+            }
+            const { unitPrice, estimatedCost, packages, packageSize, packagePrice } = estimateCost(ing, prod, servings)
             totalCost += estimatedCost
-            perIngredient.push({ name: ing.name, unitPrice, estimatedCost, product: prod, topCandidates: [], packages, packageSize })
+            perIngredient.push({ name: ing.name, unitPrice, estimatedCost, product: prod, topCandidates: [], packages, packageSize, packagePrice })
             continue
           }
         }
@@ -241,20 +298,31 @@ export async function POST(req: NextRequest) {
       const terms = buildSearchTerms(ing)
       const categoryHint = classifyCategory(ing.name)
       let candidates: any[] = []
-      for (const t of terms) {
-        const params = [
-          `filter.term=${encodeURIComponent(t)}`,
-          locationId ? `filter.locationId=${encodeURIComponent(locationId)}` : '',
-          'filter.limit=20',
-        ].filter(Boolean).join('&')
-        const url = `https://api.kroger.com/v1/products?${params}`
-        const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } })
-        if (resp.ok) {
-          const data = await resp.json()
-          const products = data?.data || []
-          candidates.push(...products)
+      if (useV2 && locationId) {
+        for (const t of terms) {
+          try {
+            const v2 = await searchProductsV2({ term: t, locationId, limit: 20 })
+            candidates.push(...v2.map(normalizeV2ToV1Like))
+          } catch {}
+          if (candidates.length >= 20) break
         }
-        if (candidates.length >= 20) break
+      }
+      if (!useV2 || candidates.length === 0) {
+        for (const t of terms) {
+          const params = [
+            `filter.term=${encodeURIComponent(t)}`,
+            locationId ? `filter.locationId=${encodeURIComponent(locationId)}` : '',
+            'filter.limit=20',
+          ].filter(Boolean).join('&')
+          const url = `https://api.kroger.com/v1/products?${params}`
+          const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } })
+          if (resp.ok) {
+            const data = await resp.json()
+            const products = data?.data || []
+            candidates.push(...products)
+          }
+          if (candidates.length >= 20) break
+        }
       }
       // Deduplicate candidates by productId
       const unique: Record<string, any> = {}
@@ -264,14 +332,20 @@ export async function POST(req: NextRequest) {
       }
       const uniqueList = Object.values(unique)
       let product: any | null = null
+      // Defaults for optional UI metadata
+      let topCandidates: any[] = []
+      let selectedConfidence = 0
+      let explain: any = undefined
       if (uniqueList.length > 0) {
         const scored = uniqueList.map(p => ({ p, d: scoreProductDetailed(ing, p, categoryHint) }))
-          .sort((a,b) => b.s - a.s)
+          .sort((a,b) => b.d.score - a.d.score)
         // patch: adapt accessors after change
         // Provide fallback for .s
         const withScores = scored.map(x => ({ p: x.p, s: (x as any).s ?? x.d.score, d: x.d }))
         withScores.sort((a,b)=> b.s - a.s)
-        product = withScores[0]?.p || null
+        // Prefer a candidate that actually has a price at this store
+        const firstPriced = withScores.find(x => getProductPrice(x.p))
+        product = (firstPriced?.p || withScores[0]?.p) || null
         const clamp = (x: number) => Math.max(0, Math.min(1, x))
         const top = withScores.slice(0,3).map(x => ({
           productId: x.p?.productId,
@@ -289,9 +363,9 @@ export async function POST(req: NextRequest) {
         }))
         // attach top candidates for UI override later
         // will be added below when we push perIngredient entry
-        var topCandidates = top
-        var selectedConfidence = clamp(withScores[0]?.s || 0)
-        var explain = {
+        topCandidates = top
+        selectedConfidence = clamp(withScores[0]?.s || 0)
+        explain = {
           titleSim: withScores[0]?.d.titleSim,
           sizeProximity: withScores[0]?.d.sizeProximity,
           categoryMatched: withScores[0]?.d.categoryMatched,
@@ -308,13 +382,13 @@ export async function POST(req: NextRequest) {
         continue
       }
 
-      const { unitPrice, estimatedCost, packages, packageSize } = estimateCost(ing, product, servings)
+      const { unitPrice, estimatedCost, packages, packageSize, packagePrice } = estimateCost(ing, product, servings)
       totalCost += estimatedCost
-      perIngredient.push({ name: ing.name, unitPrice, estimatedCost, product, topCandidates: (typeof topCandidates !== 'undefined' ? topCandidates : []), confidence: (typeof selectedConfidence !== 'undefined' ? selectedConfidence : 1), explain, packages, packageSize })
+      perIngredient.push({ name: ing.name, unitPrice, estimatedCost, product, topCandidates: (typeof topCandidates !== 'undefined' ? topCandidates : []), confidence: (typeof selectedConfidence !== 'undefined' ? selectedConfidence : 1), explain, packages, packageSize, packagePrice })
     }
 
     const costPerServing = totalCost / Math.max(servings, 1)
-    return NextResponse.json({ data: { perIngredient, totalCost, costPerServing, locationId, storeName } })
+    return NextResponse.json({ data: { perIngredient, totalCost, costPerServing, locationId, storeName, source: 'live' } })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'failed' }, { status: 500 })
   }
