@@ -6,6 +6,9 @@
 import { createClient } from '@/lib/supabase/client';
 import { AUTH_CONFIG, type AuthProvider } from './auth-config';
 import type { User, AuthError } from '@supabase/supabase-js';
+import { AuthenticationError, NetworkError } from '@/lib/error-handling/error-types';
+import { errorHandler } from '@/lib/error-handling/error-handler';
+import { logger } from '@/lib/monitoring/logger';
 
 export interface AuthResult {
   user?: User | null;

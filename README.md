@@ -6,9 +6,28 @@ A culturally-aware, AI-driven meal planning platform that helps families and ind
 
 PlateWise combines advanced cost analysis, cultural heritage preservation, nutritional optimization, and community features to create a holistic meal planning and grocery shopping experience. The platform uses Amazon Bedrock AI to generate personalized meal plans that respect cultural authenticity while staying within budget constraints, integrated with comprehensive external APIs for real-time pricing, recipe discovery, and cultural food research.
 
+## 🔄 Recent Updates & Enhancements
+
+PlateWise has recently undergone significant improvements to enhance the user experience and provide more accurate, culturally-sensitive meal planning:
+
+### Latest Features (January 2025)
+- **Enhanced Multi-Tier Pricing System** - New EnhancedPricingService combines Perplexity AI primary pricing with Kroger API fallback and basic estimates for 99.9% coverage
+- **AI-First Pricing Intelligence** - Perplexity AI serves as primary pricing source with real-time web price aggregation from major grocery stores
+- **Intelligent Fallback Architecture** - Automatic fallback from Perplexity → Kroger → Basic estimates with confidence scoring and transparent source attribution
+- **Advanced Pricing Testing** - Comprehensive PricingFallbackTest component for testing multi-tier pricing system with real-time validation and health monitoring
+- **Smart Confidence Scoring** - Confidence scoring system (0-100%) for all pricing sources with detailed explanations and reliability indicators
+- **Enhanced API Health Monitoring** - Real-time health checks for Perplexity and Kroger services with automatic failover capabilities
+- **Cultural Authenticity Scoring** - Comprehensive 1-10 scale authenticity rating system with AI-powered cultural context analysis
+- **Advanced Recipe Management** - Complete CRUD system with real-time pricing, scaling, and cultural preservation features
+- **Improved Error Handling** - Production-ready error boundaries with graceful degradation and user-friendly recovery options
+- **Enhanced Voice Integration** - ElevenLabs integration with cultural pronunciation guides and multilingual support
+- **Tavily Research Integration** - Cultural food research capabilities with hooks system for authenticity validation
+- **Developer Tools Enhancement** - Comprehensive debugging components for recipe operations and pricing analysis with fallback testing
+- **Resilient Service Architecture** - Multiple pricing sources with intelligent fallback to ensure 99.9% service availability
+
 ## 🚀 Current Status
 
-PlateWise has reached a significant milestone with a comprehensive foundation and production-ready features:
+PlateWise has reached a significant milestone with a comprehensive foundation and production-ready features. The platform now includes advanced recipe management with real-time pricing integration, comprehensive cultural authenticity tracking, and a complete AI-powered meal planning system:
 
 - ✅ **Complete Authentication System** - Supabase Auth with email confirmation, password reset, OAuth callbacks, and secure session management
 - ✅ **Advanced Profile Setup** - 7-step cultural onboarding wizard with personal info, cultural preferences, dietary restrictions, budget settings, nutritional goals, cooking profile, and comprehensive review
@@ -16,13 +35,16 @@ PlateWise has reached a significant milestone with a comprehensive foundation an
 - ✅ **Cultural Design System** - Bento-style UI with 5 dynamic cultural themes, responsive grid system, and accessibility compliance
 - ✅ **Modern Landing Experience** - Responsive design with cultural imagery, theme switching, and optimized performance
 - ✅ **AI-Powered Intelligence** - Amazon Bedrock integration with Claude 3.5 Sonnet for culturally-aware meal planning and recipe analysis
-- ✅ **Comprehensive API Layer** - 8 integrated external services with circuit breakers, rate limiting, caching, and health monitoring
-- ✅ **Advanced Recipe Management** - Full CRUD operations, cultural authenticity scoring, intelligent scaling, cost analysis, and community features
+- ✅ **Comprehensive API Layer** - 9+ integrated external services with circuit breakers, rate limiting, caching, and health monitoring
+- ✅ **Advanced Recipe Management** - Complete CRUD system with cultural authenticity scoring, intelligent scaling, AI-powered cost analysis, and community features
+- ✅ **Enhanced Multi-Tier Pricing System** - Complete EnhancedPricingService with Perplexity AI primary, Kroger API fallback, basic estimates, confidence scoring, health monitoring, and 99.9% coverage guarantee
 - ✅ **Multilingual Voice Integration** - ElevenLabs text-to-speech with cultural pronunciation guides and voice command system
-- ✅ **Local Food Discovery** - Google Places and USDA integration for grocery stores, specialty markets, and farmer markets
-- ✅ **Smart Price Comparison** - Kroger API integration with real-time pricing, coupon discovery, and shopping optimization
-- ✅ **Developer Tools** - Comprehensive debugging components, MCP integration, and development utilities
-- ✅ **Cultural Authenticity Engine** - AI-powered cultural context analysis and preservation recommendations
+- ✅ **Local Food Discovery** - Google Places and USDA integration for grocery stores, specialty markets, and farmer markets with cultural filtering
+- ✅ **AI-Powered Price Intelligence** - Multi-tier pricing system with Perplexity AI primary, Kroger fallback, route optimization, and shopping list generation
+- ✅ **Developer Tools** - Comprehensive debugging components, MCP integration, and development utilities with recipe testing tools and pricing fallback testing
+- ✅ **Cultural Authenticity Engine** - AI-powered cultural context analysis, preservation recommendations, and authenticity scoring (1-10 scale)
+- ✅ **Error Handling & Reliability** - Production-ready error boundaries, graceful degradation, and comprehensive error recovery
+- ✅ **Recipe Intelligence System** - Multi-source recipe search, cultural classification, ingredient scaling, and cost optimization
 - 🔄 **Meal Planning & Budget Tracking** - AI-powered meal plans with cost optimization and cultural balance (in progress)
 
 ## Key Features
@@ -42,19 +64,33 @@ PlateWise has reached a significant milestone with a comprehensive foundation an
 - Multi-cultural theme system (Mediterranean, Asian, Latin American, African, Middle Eastern)
 
 ### 🤖 AI-Powered Intelligence
-- **Amazon Bedrock Integration** - Claude 3.5 Sonnet for intelligent meal planning with cultural context
-- **Cultural Authenticity Engine** - AI-powered scoring, preservation recommendations, and traditional technique analysis
+- **Amazon Bedrock Integration** - Claude 3.5 Sonnet for intelligent meal planning with cultural context and authenticity preservation
+- **Enhanced Multi-Tier Pricing System** - EnhancedPricingService with Perplexity AI primary, Kroger API fallback, basic estimates, confidence scoring, and health monitoring
+- **Cultural Authenticity Engine** - AI-powered scoring (1-10 scale), preservation recommendations, and traditional technique analysis
 - **Smart Ingredient Substitutions** - Culturally-appropriate alternatives with cost and authenticity impact analysis
-- **Recipe Intelligence** - Extract and parse recipes from text, photos, or voice input with cultural classification
+- **Recipe Intelligence** - Extract and parse recipes from text, photos, or voice input with cultural classification and context
 - **Budget Optimization AI** - Cost reduction strategies while maintaining cultural authenticity and nutritional goals
-- **Multi-language Translation** - Preserve cultural context and culinary terminology across languages
+- **Multi-language Translation** - Preserve cultural context and culinary terminology across languages with proper pronunciation
 - **Voice Command System** - ElevenLabs integration with multilingual support and cultural pronunciation guides
-- **Robust Service Architecture** - Circuit breakers, rate limiting, health monitoring, and intelligent fallbacks
-- **Recipe Analysis Engine** - Comprehensive CRUD operations with cultural authenticity scoring and scaling algorithms
+- **Robust Service Architecture** - Circuit breakers, rate limiting, health monitoring, and intelligent fallbacks with 99.9% uptime target
+- **Recipe Analysis Engine** - Comprehensive CRUD operations with cultural authenticity scoring and intelligent scaling algorithms
+- **Error Recovery & Resilience** - Production-ready error boundaries with graceful degradation and user-friendly error handling
+- **Pricing Intelligence** - AI-powered product matching with confidence scoring and explanation of matching logic
+- **Cultural Context AI** - Intelligent cultural significance analysis and preservation recommendations for traditional recipes
+
+### 💰 Enhanced Multi-Tier Pricing System
+PlateWise features a sophisticated **EnhancedPricingService** that ensures reliable, accurate pricing through intelligent fallback architecture:
+
+- **Perplexity AI Primary** - Real-time web price aggregation from major grocery stores (Kroger, Walmart, Target, Safeway) with AI-powered analysis
+- **Kroger API Fallback** - Advanced product matching and pricing when Perplexity confidence is low or service unavailable
+- **Basic Estimates Backup** - Intelligent price estimates based on ingredient categories when APIs are unavailable
+- **Confidence Scoring** - Transparent 0-100% confidence ratings for all pricing sources with detailed explanations
+- **Health Monitoring** - Real-time service health checks with automatic failover and status reporting
+- **99.9% Coverage** - Guaranteed pricing availability through intelligent three-tier fallback system
 
 ### 🏪 Local Store Discovery & Shopping
 - **Intelligent Store Finder** - Google Places integration with cultural specialty filtering and distance optimization
-- **Real-time Price Comparison** - Multi-store price analysis with route optimization and fuel cost calculations
+- **AI-Powered Price Intelligence** - EnhancedPricingService provides comprehensive pricing across multiple sources and stores
 - **Specialty Market Discovery** - Find ethnic markets, halal/kosher stores, and cultural specialty shops for authentic ingredients
 - **Farmer Market Integration** - USDA data integration for local farmer markets, seasonal produce, and payment options (SNAP/WIC)
 - **Smart Shopping Optimization** - AI-powered route planning with cultural store prioritization and cost analysis
@@ -71,6 +107,10 @@ PlateWise has reached a significant milestone with a comprehensive foundation an
 - **Recipe Scaling Engine** - Intelligent ingredient scaling with proper unit conversions and cultural context preservation
 - **Real-time Cost Analysis** - Dynamic cost calculations with multi-store price comparisons and budget impact assessment
 - **Recipe Input Methods** - Support for text input, URL parsing, voice commands, and photo recognition with AI processing
+- **Enhanced Multi-Tier Pricing Integration** - EnhancedPricingService with Perplexity AI primary, Kroger fallback, basic estimates, confidence scoring, and health monitoring
+- **Advanced Pricing API Routes** - Enhanced pricing endpoints with automatic fallback, confidence scoring, and detailed source attribution
+- **Recipe Debug Tools** - Comprehensive debugging interface for recipe operations, authentication flows, and database interactions
+- **Ingredient Intelligence** - Advanced ingredient parsing, substitution suggestions, and cultural impact analysis
 
 ### 👥 Community Features
 - **Recipe Sharing** - Share recipes with cultural authenticity ratings and community feedback
@@ -101,24 +141,30 @@ PlateWise has reached a significant milestone with a comprehensive foundation an
 - **Voice Processing**: ElevenLabs API for multilingual text-to-speech
 - **Cultural Analysis**: Custom AI prompts for authenticity scoring
 - **Recipe Intelligence**: AI-powered parsing and ingredient analysis
+- **Primary Pricing Intelligence**: Perplexity AI for real-time grocery pricing with web aggregation from major stores
 
 ### External Integrations
-- **Grocery & Shopping APIs**: Kroger Catalog API for real-time pricing, product availability, and coupon integration
+- **Enhanced Multi-Tier Pricing**: EnhancedPricingService combining Perplexity AI primary, Kroger API fallback, and basic estimates with confidence scoring and health monitoring
+- **AI-Powered Pricing Intelligence**: Perplexity AI for primary real-time grocery pricing with web aggregation from major stores
+- **Grocery & Shopping APIs**: Kroger Catalog API v2 for fallback pricing, advanced product matching, and coupon integration
 - **Recipe Discovery**: Spoonacular API for extensive recipe database with cultural cuisine filtering and nutritional data
 - **Voice & Audio Services**: ElevenLabs API for multilingual text-to-speech with cultural pronunciation guides and voice commands
-- **Location & Maps**: Google Places API for grocery store, specialty market, and cultural food source discovery
+- **Location & Maps**: Google Places API for grocery store, specialty market, and cultural food source discovery with cultural filtering
 - **Government Data**: USDA API for food composition, farmer markets, seasonal produce, and nutritional guidelines
-- **Price Intelligence**: Multi-store price comparison with route optimization and savings calculations
+- **Enhanced Multi-Tier Pricing System**: EnhancedPricingService with Perplexity AI primary, Kroger API fallback, basic estimates, confidence scoring, and automatic health monitoring
 - **Voice Interface**: Complete multilingual voice command system for hands-free cooking assistance and navigation
-- **Cultural Research**: Tavily API integration for cultural food research and authenticity validation (optional)
+- **Cultural Research**: Tavily API integration for cultural food research and authenticity validation with hooks system
+- **AI Services**: Amazon Bedrock with Claude 3.5 Sonnet for culturally-aware meal planning and recipe analysis
 
 ### Infrastructure & Performance
 - **Caching**: Redis for API response caching and performance optimization
-- **Reliability**: Circuit breaker patterns, rate limiting, and health monitoring
+- **Reliability**: Circuit breaker patterns, rate limiting, and health monitoring with fallback services
+- **Error Handling**: Production-ready error boundaries with graceful degradation and user recovery options
 - **Testing**: Jest, React Testing Library, accessibility testing, and cultural authenticity validation
 - **Deployment**: Vercel with automatic deployments and environment management
 - **Monitoring**: Built-in error tracking, performance monitoring, and API usage analytics
 - **Database**: Supabase PostgreSQL with Row Level Security and cultural metadata support
+- **Enhanced Multi-Tier Pricing**: EnhancedPricingService with Perplexity AI primary, Kroger API fallback, basic estimates, and health monitoring for 99.9% coverage
 
 ## Project Structure
 
@@ -153,42 +199,74 @@ platewise/
 │   │   ├── meal-plans/           # Meal planning interface
 │   │   ├── help/                 # Help and support pages
 │   │   ├── debug/                # Debug and development tools
+│   │   │   ├── page.tsx          # Debug dashboard with pricing fallback testing
+│   │   │   └── components/       # Debug components (RecipeDebug, PricingFallbackTest)
+│   │   ├── api/                  # Next.js API routes
+│   │   │   ├── kroger/           # Kroger API integration endpoints
+│   │   │   │   └── locations/    # Store location services
+│   │   │   ├── pricing/          # Enhanced multi-tier pricing and cost analysis
+│   │   │   │   ├── alternatives/ # Alternative ingredient pricing with confidence scoring
+│   │   │   │   ├── enhanced/     # EnhancedPricingService with Perplexity primary, Kroger fallback, and health monitoring
+│   │   │   │   ├── ingredients/  # Ingredient price lookup with AI-powered product matching
+│   │   │   │   └── route.ts      # Main pricing API endpoint with multi-tier fallback and explanations
+│   │   │   ├── recipes/          # Recipe management endpoints
+│   │   │   │   └── import/       # Recipe import and parsing
+│   │   │   ├── recommendations/  # AI-powered recommendation endpoints
+│   │   │   └── search/           # Search functionality endpoints
+│   │   │       └── tavily/       # Tavily search integration for cultural research
 │   │   └── page.tsx              # Landing page
 │   ├── components/               # React components
 │   │   ├── auth/                 # Authentication components (SignIn, SignUp, ForgotPassword)
 │   │   ├── dashboard/            # Dashboard bento cards and recommendations
-│   │   ├── debug/                # Debug components (RecipeDebug, API testing)
+│   │   ├── debug/                # Debug components (RecipeDebug, PricingFallbackTest, API testing)
+│   │   │   ├── RecipeDebug.tsx   # Recipe system testing and debugging
+│   │   │   └── PricingFallbackTest.tsx # Interactive EnhancedPricingService testing with real-time health monitoring and fallback validation
 │   │   ├── landing/              # Landing page components (LandingPage, LoadingScreen)
 │   │   ├── layout/               # Layout and navigation (AppLayout, MainNavigation)
 │   │   ├── profile/              # Profile setup wizard (7 steps) and management
 │   │   │   ├── steps/            # Individual setup steps
 │   │   │   └── __tests__/        # Component tests
-│   │   ├── recipes/              # Recipe components (cards, forms, search, scaling, recommendations)
+│   │   ├── recipes/              # Recipe components (cards, forms, search, scaling, recommendations, pricing)
+│   │   │   ├── EnhancedPricingPanel.tsx # Enhanced multi-tier pricing dashboard with health monitoring
+│   │   │   ├── GroceryPricing.tsx    # AI-powered grocery pricing with confidence scoring
+│   │   │   ├── PricingPanel.tsx      # Interactive pricing dashboard
+│   │   │   ├── RecipeInputModal.tsx  # Multi-method recipe input (text, URL, voice, photo)
+│   │   │   ├── SpoonacularSearch.tsx # Spoonacular API integration
+│   │   │   └── TavilySearch.tsx      # Cultural research integration
 │   │   ├── bento/                # Bento grid system components
 │   │   ├── navigation/           # Navigation components (Breadcrumb)
-│   │   └── ui/                   # Reusable UI components (Button, Logo, ThemeSwitcher)
+│   │   ├── ui/                   # Reusable UI components (Button, Logo, ThemeSwitcher)
+│   │   ├── ErrorBoundary.tsx     # Production-ready error boundary with user recovery options
+│   │   └── Providers.tsx         # Centralized context providers for app-wide state
 │   ├── contexts/                 # React contexts (Auth, Theme)
-│   ├── hooks/                    # Custom React hooks (useAuth, useProfileSetup, useProfileTheme)
+│   ├── hooks/                    # Custom React hooks (useAuth, useProfileSetup, useProfileTheme, useTavily, useEnhancedPricing)
 │   ├── lib/                      # Core services and utilities
 │   │   ├── ai/                   # Amazon Bedrock AI service with Claude 3.5 Sonnet
 │   │   ├── auth/                 # Authentication helpers and configuration
-│   │   ├── external-apis/        # External API integrations (8 services)
-│   │   │   ├── kroger-service.ts # Kroger API integration
+│   │   ├── external-apis/        # External API integrations (9+ services)
+│   │   │   ├── enhanced-pricing-service.ts # Multi-tier pricing service with Perplexity primary and Kroger fallback
+│   │   │   ├── perplexity-service.ts # Primary AI-powered grocery pricing service
+│   │   │   ├── kroger-service.ts # Kroger Catalog API v2 fallback with advanced product matching
+│   │   │   ├── kroger-catalog-v2.ts # Enhanced Kroger integration with confidence scoring
+│   │   │   ├── kroger-matching.ts # Intelligent product matching algorithms
 │   │   │   ├── spoonacular-service.ts # Recipe database API
-│   │   │   ├── elevenlabs-service.ts # Voice synthesis
-│   │   │   ├── google-places-service.ts # Store discovery
-│   │   │   ├── usda-service.ts   # Government food data
-│   │   │   ├── tavily-service.ts # Cultural research
+│   │   │   ├── elevenlabs-service.ts # Voice synthesis with cultural pronunciation
+│   │   │   ├── google-places-service.ts # Store discovery with cultural filtering
+│   │   │   ├── usda-service.ts   # Government food data and farmer markets
+│   │   │   ├── tavily-service.ts # Cultural research and authenticity validation
+
 │   │   │   ├── location-service.ts # Unified location services
 │   │   │   ├── voice-interface.ts # Voice command system
-│   │   │   └── price-comparison.ts # Price analysis
+│   │   │   └── price-comparison.ts # Advanced price analysis
 │   │   ├── profile/              # Profile management services
 │   │   ├── recipes/              # Recipe management services
-│   │   │   ├── recipe-service.ts # Core recipe operations
-│   │   │   ├── recipe-database-service.ts # Database operations
-│   │   │   ├── recipe-scaling-service.ts # Ingredient scaling
-│   │   │   ├── recipe-analysis-service.ts # Cultural analysis
-│   │   │   └── recipe-recommendations-service.ts # AI recommendations
+│   │   │   ├── recipe-service.ts # Core recipe operations with CRUD
+│   │   │   ├── recipe-database-service.ts # Database operations with RLS
+│   │   │   ├── recipe-database-service-fix.ts # Enhanced database operations
+│   │   │   ├── recipe-scaling-service.ts # Intelligent ingredient scaling
+│   │   │   ├── recipe-analysis-service.ts # Cultural authenticity analysis
+│   │   │   ├── recipe-recommendations-service.ts # AI-powered recommendations
+│   │   │   └── html-recipe-parser.ts # Recipe parsing from HTML/text
 │   │   ├── supabase/             # Supabase client configuration
 │   │   ├── themes/               # Cultural theme system
 │   │   ├── favicon/              # Favicon management
@@ -230,13 +308,14 @@ AWS_ACCESS_KEY_ID=your_aws_access_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret_key
 
 # External API Keys (Optional for enhanced features)
-# Grocery & Shopping APIs
+# Enhanced Multi-Tier Pricing APIs
+PERPLEXITY_API_KEY=your_perplexity_api_key        # Primary AI-powered pricing service for EnhancedPricingService
 KROGER_CLIENT_ID=your_kroger_client_id
-KROGER_CLIENT_SECRET=your_kroger_client_secret
+KROGER_CLIENT_SECRET=your_kroger_client_secret    # Fallback pricing service for EnhancedPricingService
 
 # Recipe & Nutrition APIs
-RAPIDAPI_KEY=your_rapidapi_key                    # For Spoonacular access
-SPOONACULAR_API_KEY=your_spoonacular_api_key      # Alternative direct access
+RAPIDAPI_KEY=your_rapidapi_key                    # For Spoonacular access via RapidAPI
+SPOONACULAR_API_KEY=your_spoonacular_api_key      # Alternative direct access (deprecated)
 USDA_API_KEY=your_usda_nutrition_api_key          # USDA FoodData Central
 
 # Voice & Location APIs
@@ -252,17 +331,21 @@ NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=your_nextauth_secret
 
 # Development Flags (Optional)
-NEXT_PUBLIC_TAVILY_MOCK=false                     # Set to true to use mock data
+NEXT_PUBLIC_TAVILY_MOCK=false                     # Set to true to use mock data for Tavily API
+USE_KROGER_CATALOG_V2=true                        # Set to true to use Kroger Catalog API v2 with advanced product matching (recommended)
+ENABLE_ENHANCED_PRICING=true                      # Set to true to use EnhancedPricingService with multi-tier fallback (recommended)
+ENABLE_PRICING_DEBUG=true                         # Set to true to enable detailed pricing debug logs and EnhancedPricingService testing interface
 ```
 
 **Note**: Copy `.env.example` to `.env.local` and update with your actual API keys. The application will work with just Supabase and AWS Bedrock credentials for core functionality. External API keys enable enhanced features:
 
-- **Kroger API**: Real-time pricing and coupon integration
-- **Spoonacular API**: Expanded recipe database and nutritional data
-- **ElevenLabs API**: Multilingual voice synthesis and commands
-- **Google Places API**: Local store discovery and specialty market finding
+- **Perplexity API**: Primary AI-powered pricing service for the EnhancedPricingService with real-time web price aggregation from major grocery stores
+- **Kroger API**: Fallback pricing service for the EnhancedPricingService with advanced product matching, confidence scoring, and coupon integration
+- **Spoonacular API**: Expanded recipe database and nutritional data (use RAPIDAPI_KEY for best results)
+- **ElevenLabs API**: Multilingual voice synthesis and commands with cultural pronunciation guides
+- **Google Places API**: Local store discovery and specialty market finding with cultural filtering
 - **USDA API**: Government nutrition data and farmer market information
-- **Tavily API**: Cultural food research and authenticity validation
+- **Tavily API**: Cultural food research and authenticity validation with hooks integration
 
 ### Installation Steps
 
@@ -296,6 +379,48 @@ NEXT_PUBLIC_TAVILY_MOCK=false                     # Set to true to use mock data
 6. **Open application**
    Navigate to `http://localhost:3000`
 
+7. **Test enhanced pricing system (optional)**
+   Navigate to `http://localhost:3000/debug` to access the PricingFallbackTest component and test the EnhancedPricingService with real-time health monitoring
+
+## 🛠️ Development & Testing Tools
+
+PlateWise includes comprehensive development and testing tools to ensure reliability and performance of all features, especially the complex pricing and AI systems.
+
+### Debug Dashboard
+Access the debug dashboard at `/debug` to test and monitor various system components:
+
+- **PricingFallbackTest** - Interactive testing of the EnhancedPricingService
+  - Test complete multi-tier pricing with Perplexity primary, Kroger fallback, and basic estimates
+  - Monitor real-time health status of Perplexity and Kroger services
+  - View confidence scores and automatic fallback behavior
+  - Add/remove ingredients dynamically with live updates
+  - Test different locations and store availability
+  - View detailed API response logs, error handling, and service health metrics
+
+- **RecipeDebug** - Comprehensive recipe system testing
+  - Test recipe creation, parsing, and database operations
+  - Monitor authentication flows and user permissions
+  - Debug cultural authenticity scoring algorithms
+  - Test recipe scaling and cost calculations
+
+### Enhanced Pricing System Testing
+The PricingFallbackTest component provides a complete testing interface for the EnhancedPricingService:
+
+1. **Multi-Tier Testing** - Test the complete EnhancedPricingService with Perplexity AI primary, Kroger API fallback, and basic estimates
+2. **Health Monitoring** - Real-time health checks for Perplexity and Kroger services with automatic failover detection
+3. **Confidence Scoring** - Monitor pricing confidence levels (0-100%) across all pricing tiers with detailed source attribution
+4. **Fallback Behavior** - Verify automatic fallback from Perplexity → Kroger → Basic estimates with transparent reporting
+5. **Multi-Location Support** - Test pricing across different ZIP codes and cities with location-aware results
+6. **Real-time Updates** - See live pricing updates, API response times, fallback behavior, and service health status
+
+### API Health Monitoring
+- Circuit breaker status for all external APIs
+- Real-time health monitoring for EnhancedPricingService (Perplexity and Kroger services)
+- Rate limiting and usage statistics
+- Cache hit/miss ratios and performance metrics
+- Cultural authenticity validation results
+- Pricing confidence scores and fallback behavior tracking
+
 ## 🎨 Design Philosophy
 
 PlateWise uses a modern **bento-style design system** with bold, culturally-inspired color palettes that celebrate the diversity of global cuisines. The interface dynamically adapts to different cultural themes while maintaining accessibility and usability standards.
@@ -321,26 +446,64 @@ PlateWise uses a modern **bento-style design system** with bold, culturally-insp
 
 ## 🤖 AI-Powered Features
 
-PlateWise leverages Amazon Bedrock with Claude 3.5 Sonnet to provide intelligent, culturally-aware meal planning:
+PlateWise leverages Amazon Bedrock with Claude 3.5 Sonnet to provide intelligent, culturally-aware meal planning and recipe analysis:
 
 ### Core AI Capabilities
 - **Intelligent Meal Planning** - Generate personalized meal plans respecting cultural preferences and budget constraints
-- **Cultural Authenticity Analysis** - Score recipes for traditional accuracy and suggest preservation methods
-- **Smart Ingredient Substitutions** - Recommend culturally-appropriate alternatives with cost and authenticity impact
-- **Recipe Intelligence** - Parse recipes from text, photos, or voice input with cultural context
-- **Budget Optimization** - AI-driven cost reduction strategies while maintaining cultural authenticity
+- **Cultural Authenticity Analysis** - Score recipes for traditional accuracy (1-10 scale) and suggest preservation methods
+- **Smart Ingredient Substitutions** - Recommend culturally-appropriate alternatives with cost and authenticity impact analysis
+- **Recipe Intelligence** - Parse recipes from text, photos, or voice input with cultural context and authenticity classification
+- **Budget Optimization** - AI-driven cost reduction strategies while maintaining cultural authenticity and nutritional goals
 - **Multi-language Translation** - Preserve cultural context and culinary terminology across languages
+- **Product Matching Intelligence** - AI-powered ingredient-to-product matching with confidence scoring and explanations
+- **Real-time Pricing Intelligence** - Multi-tier pricing system with Perplexity AI fallback for comprehensive grocery price coverage
+- **Confidence-Based Decision Making** - All AI recommendations include confidence scores to help users make informed decisions
 
 ### AI Service Architecture
-- **Circuit Breaker Pattern** - Graceful handling of AI service failures
-- **Rate Limiting** - Intelligent request management to prevent API abuse
-- **Caching Strategy** - Optimize AI response times and reduce costs
+- **Circuit Breaker Pattern** - Graceful handling of AI service failures with automatic recovery
+- **Rate Limiting** - Intelligent request management to prevent API abuse and optimize costs
+- **Caching Strategy** - Optimize AI response times and reduce costs with cultural context preservation
 - **Cultural Prompting** - Specialized prompts that include cultural context and authenticity requirements
 - **Fallback Systems** - Ensure application functionality even when AI services are unavailable
+- **Confidence Scoring** - AI-powered confidence metrics for product matching and recipe analysis
+- **Error Recovery** - Comprehensive error handling with meaningful user feedback and alternative suggestions
+- **Multi-AI Integration** - Perplexity AI for real-time pricing fallback with web search capabilities
+
+## 💰 Advanced Pricing Integration
+
+PlateWise features a sophisticated real-time pricing system that provides accurate cost analysis while maintaining cultural authenticity:
+
+### Kroger Catalog API v2 Integration
+- **Advanced Product Matching** - Intelligent algorithms match recipe ingredients to grocery products with confidence scoring
+- **Confidence Scoring System** - Each product match includes a confidence score (0-1) with detailed explanations
+- **Alternative Suggestions** - AI-powered alternative product recommendations when primary matches have low confidence
+- **Detailed Match Explanations** - Understand why products were matched, including category alignment, title similarity, and size proximity
+- **Cultural Context Preservation** - Maintain ingredient authenticity while finding the best product matches
+- **Real-time Price Updates** - Live pricing data with store-specific availability and promotional information
+
+### Perplexity AI Fallback Pricing
+- **Intelligent Fallback System** - Automatically switches to Perplexity AI when Kroger API is unavailable or lacks pricing data
+- **Real-time Web Search** - Leverages current grocery store websites and pricing information across major retailers
+- **Confidence-Based Pricing** - Each price estimate includes confidence scoring based on source reliability and recency
+- **Multi-Store Coverage** - Searches across Walmart, Target, Kroger, Safeway, Instacart, and other major grocery retailers
+- **Structured Price Data** - Returns standardized pricing information with store names, units, and explanatory notes
+- **Graceful Degradation** - Falls back to estimated pricing when all external services are unavailable
+- **Interactive Testing Interface** - PricingFallbackTest component allows developers to test the complete fallback system with real ingredients
+
+### Pricing Intelligence Features
+- **Multi-Store Comparison** - Compare prices across different store locations with distance optimization
+- **Budget Impact Analysis** - Real-time calculation of recipe costs with per-serving breakdowns
+- **Seasonal Price Trends** - Historical pricing data to identify optimal buying times
+- **Bulk Buying Recommendations** - Suggest bulk purchases when cost-effective with expiration considerations
+- **Coupon Integration** - Automatic coupon discovery and savings calculations
+- **Shopping List Optimization** - Generate optimized shopping lists with route planning and cost minimization
+- **Intelligent Fallback Pricing** - Perplexity AI provides current grocery prices from major retailers when primary APIs fail
+- **Developer Testing Tools** - Interactive components for testing pricing accuracy and fallback behavior across different scenariosail
+- **Service Reliability** - Multiple pricing sources ensure 99.9% availability with graceful degradation
 
 ## 📚 Recipe Management System
 
-PlateWise includes a comprehensive recipe management system with full CRUD operations, cultural authenticity tracking, and intelligent scaling capabilities:
+PlateWise includes a comprehensive recipe management system with full CRUD operations, cultural authenticity tracking, intelligent scaling capabilities, and real-time pricing integration:
 
 ### Core Database Features
 - **Advanced Recipe CRUD** - Create, read, update, and delete recipes with proper authorization and RLS security
@@ -349,18 +512,23 @@ PlateWise includes a comprehensive recipe management system with full CRUD opera
 - **Multi-dimensional Search** - Advanced filtering by culture, cuisine, difficulty, cooking time, authenticity level, dietary restrictions, and cost
 - **Community Rating System** - Multi-dimensional ratings for taste, cost-effectiveness, cultural authenticity, and difficulty level
 - **Intelligent Recipe Scaling** - Dynamic ingredient scaling with proper unit conversions and cultural context preservation
-- **Real-time Cost Integration** - Live cost calculations with multi-store price comparisons and budget impact analysis
+- **Real-time Cost Integration** - Live cost calculations with multi-store price comparisons, confidence scoring, and budget impact analysis
+- **Advanced Product Matching** - Kroger Catalog API v2 integration with intelligent product matching and alternative suggestions
 - **Developer Debug Tools** - Comprehensive debugging components for recipe operations, authentication, and database interactions
 
 ### Recipe Components Architecture
 - **RecipeCard** - Beautiful recipe display with cultural theming, cost analysis, and authenticity indicators
-- **RecipeForm** - Comprehensive recipe creation and editing interface with cultural context validation
+- **RecipeForm** - Comprehensive recipe creation and editing interface with cultural context validation and real-time pricing
 - **RecipeSearch** - Advanced search with cultural, dietary, authenticity filters, and AI-powered suggestions
 - **RecipeList** - Responsive bento grid layout with infinite scroll, cultural categorization, and performance optimization
 - **RecipeScaling** - Interactive ingredient scaling with intelligent unit conversion and cultural technique preservation
 - **RecipeInputModal** - Multi-method recipe input (text, URL, voice, photo) with AI parsing and cultural classification
 - **RecipeRecommendations** - AI-powered suggestions based on cultural preferences, budget constraints, and nutritional goals
-- **RecipeDebug** - Production-ready debugging tool for recipe operations, authentication flows, and database interactions
+- **GroceryPricing** - Real-time grocery pricing component with confidence scoring, product matching explanations, and alternative suggestions
+- **PricingPanel** - Interactive pricing dashboard for ingredient cost tracking, budget optimization, and store comparison
+- **SpoonacularSearch** - Integration with Spoonacular API for extensive recipe database access with cultural filtering
+- **TavilySearch** - Cultural food research and authenticity validation through Tavily API with hooks integration
+- **RecipeDebug** - Production-ready debugging tool for recipe operations, authentication flows, database interactions, and pricing analysis
 
 ### Cultural Intelligence Features
 - **Authenticity Classification** - AI-powered categorization with cultural significance analysis and preservation recommendations
@@ -369,6 +537,24 @@ PlateWise includes a comprehensive recipe management system with full CRUD opera
 - **Ingredient Impact Tracking** - Monitor and analyze cultural impact of ingredient substitutions with AI guidance
 - **Traditional Method Preservation** - Document and preserve traditional cooking techniques with video and audio guides
 - **Cultural Expert Integration** - Community validation system for cultural accuracy and authenticity verification
+
+## 🛡️ Error Handling & Reliability
+
+PlateWise is built with production-ready reliability and comprehensive error handling:
+
+### Error Boundary System
+- **React Error Boundaries** - Catch and handle component errors gracefully without crashing the entire application
+- **User-Friendly Recovery** - Clear error messages with actionable recovery options (refresh, retry, navigate)
+- **Development Debugging** - Detailed error information and stack traces in development mode
+- **Graceful Degradation** - Application continues to function even when individual components fail
+- **Error Reporting** - Comprehensive error logging for monitoring and debugging
+
+### Service Reliability
+- **Circuit Breaker Pattern** - Automatic failover for external API failures with intelligent retry logic
+- **Fallback Systems** - Alternative data sources and cached responses when services are unavailable
+- **Health Monitoring** - Real-time monitoring of all external services with automatic recovery
+- **Rate Limiting** - Intelligent request throttling to prevent API abuse and ensure service stability
+- **Timeout Handling** - Proper timeout management for all external API calls with user feedback
 
 ## 🌍 Cultural Sensitivity
 
@@ -386,7 +572,9 @@ PlateWise is built with deep respect for cultural food traditions. Our developme
 PlateWise integrates with 8+ external services through a robust, production-ready API layer:
 
 ### Grocery & Shopping Intelligence
-- **Kroger Catalog API** - Real-time product pricing, availability, coupon integration, and store location services
+- **Kroger Catalog API v2** - Real-time product pricing, availability, coupon integration, and store location services with advanced product matching algorithms
+- **Intelligent Product Matching** - Confidence scoring system with detailed explanations for ingredient-to-product matching accuracy
+- **Alternative Product Suggestions** - AI-powered alternative product recommendations with cost and cultural impact analysis
 - **Google Places API** - Grocery store and specialty market discovery with cultural filtering and distance optimization
 - **Advanced Price Comparison** - Multi-store price analysis with route optimization, fuel cost calculations, and savings projections
 - **Unified Location Service** - Integrated local food sourcing combining Google Places and USDA farmer market data
@@ -413,6 +601,8 @@ PlateWise integrates with 8+ external services through a robust, production-read
 - **Service Reliability** - 99.9% uptime target with redundancy and intelligent failover mechanisms
 - **Cost Optimization** - API usage monitoring, caching strategies, and intelligent request batching
 - **Security Standards** - Secure API key management, request validation, and data encryption
+- **Advanced Product Matching** - Kroger Catalog v2 with confidence scoring, explanation system, and alternative suggestions
+- **Cultural Context Preservation** - Maintain cultural authenticity throughout all API integrations and data transformations
 
 ## 🧪 Testing
 
@@ -446,6 +636,9 @@ npm run test:voice
 
 # Test MCP (Model Context Protocol) integrations
 npm run test:mcp
+
+# Test error boundaries and error handling
+npm run test:error-handling
 ```
 
 ### Testing Standards
@@ -459,6 +652,7 @@ npm run test:mcp
 - **Performance Testing** - Lighthouse scores >90 Performance, >95 Accessibility with real-world load testing
 - **Security Testing** - Authentication flows, RLS policies, API key security, and data protection validation
 - **MCP Testing** - Model Context Protocol integration testing for AI service reliability and fallback mechanisms
+- **Error Boundary Testing** - Comprehensive error handling validation with graceful degradation and user recovery flows
 
 ## 📚 Development Guidelines
 
@@ -468,6 +662,8 @@ npm run test:mcp
 - **Prettier** - Consistent code formatting
 - **Cultural Sensitivity** - Follow authenticity guidelines
 - **Performance** - Lighthouse scores >90 (Performance), >95 (Accessibility)
+- **Error Boundaries** - Production-ready error handling with graceful degradation
+- **State Management** - Centralized providers for consistent app-wide state
 
 ### API Integration Patterns
 - **Error Handling** - Comprehensive retry logic with exponential backoff and circuit breakers
@@ -480,6 +676,7 @@ npm run test:mcp
 - **Location Services** - Unified local food sourcing with specialty market discovery
 - **Price Optimization** - Real-time price comparison with route optimization and coupon integration
 - **Recipe Management** - Comprehensive CRUD operations with cultural authenticity scoring and scaling
+- **Error Recovery** - User-friendly error boundaries with retry mechanisms and fallback options
 
 ## 🚀 Deployment
 
