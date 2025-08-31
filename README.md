@@ -10,7 +10,7 @@ PlateWise combines advanced cost analysis, cultural heritage preservation, nutri
 
 PlateWise has recently undergone significant improvements to enhance the user experience and provide more accurate, culturally-sensitive meal planning:
 
-### Latest Features (January 2025)
+### Latest Features (August 2025)
 - **Enhanced Multi-Tier Pricing System** - New EnhancedPricingService combines Perplexity AI primary pricing with Kroger API fallback and basic estimates for 99.9% coverage
 - **AI-First Pricing Intelligence** - Perplexity AI serves as primary pricing source with real-time web price aggregation from major grocery stores
 - **Intelligent Fallback Architecture** - Automatic fallback from Perplexity → Kroger → Basic estimates with confidence scoring and transparent source attribution
