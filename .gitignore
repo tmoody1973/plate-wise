@@ -126,3 +126,6 @@ temp/
 
 # Redis dump
 dump.rdb
+
+CLAUDE.md 
+AGENTS.md 
