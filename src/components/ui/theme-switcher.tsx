@@ -134,15 +134,15 @@ function ThemeOption({ theme, isSelected, onSelect }: ThemeOptionProps) {
         <div className="flex gap-1">
           <div
             className="w-3 h-3 rounded-full border border-white shadow-sm"
-            style={{ backgroundColor: theme.colors.primary }}
+            style={{ backgroundColor: theme.colors.light.primary }}
           />
           <div
             className="w-3 h-3 rounded-full border border-white shadow-sm"
-            style={{ backgroundColor: theme.colors.secondary }}
+            style={{ backgroundColor: theme.colors.light.secondary }}
           />
           <div
             className="w-3 h-3 rounded-full border border-white shadow-sm"
-            style={{ backgroundColor: theme.colors.accent }}
+            style={{ backgroundColor: theme.colors.light.accent }}
           />
         </div>
         
@@ -200,7 +200,7 @@ export function ThemePreview({ theme, isSelected, onSelect }: {
       <div
         className="w-full h-24 rounded-md mb-3 relative overflow-hidden"
         style={{
-          background: `linear-gradient(135deg, ${theme.colors.gradient.join(', ')})`
+          background: `linear-gradient(135deg, ${theme.colors.light.gradient.join(', ')})`
         }}
       >
         <div className="absolute inset-0 bg-black bg-opacity-10" />

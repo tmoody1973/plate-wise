@@ -52,9 +52,9 @@ export class FaviconService {
       <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="faviconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:${theme.colors.primary};stop-opacity:1" />
-            <stop offset="50%" style="stop-color:${theme.colors.secondary};stop-opacity:1" />
-            <stop offset="100%" style="stop-color:${theme.colors.accent};stop-opacity:1" />
+            <stop offset="0%" style="stop-color:${theme.colors.light.primary};stop-opacity:1" />
+            <stop offset="50%" style="stop-color:${theme.colors.light.secondary};stop-opacity:1" />
+            <stop offset="100%" style="stop-color:${theme.colors.light.accent};stop-opacity:1" />
           </linearGradient>
         </defs>
         
@@ -164,9 +164,9 @@ export class FaviconService {
       <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="appIconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:${theme.colors.primary};stop-opacity:1" />
-            <stop offset="50%" style="stop-color:${theme.colors.secondary};stop-opacity:1" />
-            <stop offset="100%" style="stop-color:${theme.colors.accent};stop-opacity:1" />
+            <stop offset="0%" style="stop-color:${theme.colors.light.primary};stop-opacity:1" />
+            <stop offset="50%" style="stop-color:${theme.colors.light.secondary};stop-opacity:1" />
+            <stop offset="100%" style="stop-color:${theme.colors.light.accent};stop-opacity:1" />
           </linearGradient>
         </defs>
         
@@ -177,13 +177,13 @@ export class FaviconService {
         <circle cx="${size/2}" cy="${size/2}" r="${outerRadius}" fill="white" opacity="0.9"/>
         
         <!-- Inner Ring -->
-        <circle cx="${size/2}" cy="${size/2}" r="${innerRadius}" fill="none" stroke="${theme.colors.primary}" stroke-width="${strokeWidth}" opacity="0.8"/>
+        <circle cx="${size/2}" cy="${size/2}" r="${innerRadius}" fill="none" stroke="${theme.colors.light.primary}" stroke-width="${strokeWidth}" opacity="0.8"/>
         
         <!-- Center -->
-        <circle cx="${size/2}" cy="${size/2}" r="${centerRadius}" fill="${theme.colors.primary}"/>
+        <circle cx="${size/2}" cy="${size/2}" r="${centerRadius}" fill="${theme.colors.light.primary}"/>
         
         <!-- Cultural Pattern -->
-        <g opacity="0.6" stroke="${theme.colors.secondary}" stroke-width="${strokeWidth}" fill="none">
+        <g opacity="0.6" stroke="${theme.colors.light.secondary}" stroke-width="${strokeWidth}" fill="none">
           <path d="M${size*0.25} ${size*0.2} L${size/2} ${size*0.4} L${size*0.75} ${size*0.2}"/>
           <path d="M${size*0.25} ${size*0.8} L${size/2} ${size*0.6} L${size*0.75} ${size*0.8}"/>
         </g>

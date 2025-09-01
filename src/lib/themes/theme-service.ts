@@ -45,18 +45,19 @@ export class ThemeService {
   /**
    * Apply theme CSS variables to the document root
    */
-  static applyThemeToDocument(theme: CulturalTheme): void {
+  static applyThemeToDocument(theme: CulturalTheme, mode: 'light' | 'dark' = 'light'): void {
     const root = document.documentElement;
+    const colors = theme.colors[mode];
     
     // Apply color variables
-    root.style.setProperty('--cultural-primary', theme.colors.primary);
-    root.style.setProperty('--cultural-secondary', theme.colors.secondary);
-    root.style.setProperty('--cultural-accent', theme.colors.accent);
+    root.style.setProperty('--cultural-primary', colors.primary);
+    root.style.setProperty('--cultural-secondary', colors.secondary);
+    root.style.setProperty('--cultural-accent', colors.accent);
     
     // Apply gradient variables
     root.style.setProperty(
       '--cultural-gradient', 
-      `linear-gradient(135deg, ${theme.colors.gradient.join(', ')})`
+      `linear-gradient(135deg, ${colors.gradient?.join(', ') || colors.primary + ', ' + colors.secondary})`
     );
     
     // Apply pattern variables
@@ -125,7 +126,7 @@ export class ThemeService {
    */
   static initializeTheme(): CulturalTheme {
     const theme = this.loadTheme();
-    this.applyThemeToDocument(theme);
+    this.applyThemeToDocument(theme, 'light');
     return theme;
   }
 }

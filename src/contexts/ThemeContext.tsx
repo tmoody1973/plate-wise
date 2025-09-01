@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { CulturalTheme, ThemeContextType } from '@/types';
+import { CulturalTheme, ThemeContextType, ThemeMode } from '@/types';
 import { CULTURAL_THEMES, DEFAULT_THEME } from '@/lib/themes/cultural-themes';
 import { ThemeService } from '@/lib/themes/theme-service';
 
@@ -13,6 +13,13 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const [currentTheme, setCurrentTheme] = useState<CulturalTheme>(DEFAULT_THEME);
+  const [currentMode, setCurrentMode] = useState<ThemeMode>('light');
+  const [preferences, setPreferencesState] = useState({
+    culturalTheme: DEFAULT_THEME.id,
+    mode: 'light' as const,
+    highContrast: false,
+    reducedMotion: false
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -24,7 +31,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       } catch (error) {
         console.warn('Failed to initialize theme:', error);
         setCurrentTheme(DEFAULT_THEME);
-        ThemeService.applyThemeToDocument(DEFAULT_THEME);
+        ThemeService.applyThemeToDocument(DEFAULT_THEME, 'light');
       } finally {
         setIsLoading(false);
       }
@@ -37,14 +44,44 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     const newTheme = CULTURAL_THEMES.find(theme => theme.id === themeId) || DEFAULT_THEME;
     
     setCurrentTheme(newTheme);
+    setPreferencesState(prev => ({ ...prev, culturalTheme: themeId }));
     ThemeService.saveTheme(newTheme.id);
-    ThemeService.applyThemeToDocument(newTheme);
+    
+    const resolvedMode = currentMode === 'system' ? 
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : 
+      currentMode as 'light' | 'dark';
+    
+    ThemeService.applyThemeToDocument(newTheme, resolvedMode);
   };
+
+  const setMode = (mode: ThemeMode) => {
+    setCurrentMode(mode);
+    setPreferencesState(prev => ({ ...prev, mode }));
+    
+    const resolvedMode = mode === 'system' ? 
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : 
+      mode as 'light' | 'dark';
+    
+    ThemeService.applyThemeToDocument(currentTheme, resolvedMode);
+  };
+
+  const setPreferences = (newPreferences: Partial<typeof preferences>) => {
+    setPreferencesState(prev => ({ ...prev, ...newPreferences }));
+  };
+
+  const resolvedMode = currentMode === 'system' ? 
+    (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : 
+    currentMode as 'light' | 'dark';
 
   const contextValue: ThemeContextType = {
     currentTheme,
+    currentMode,
+    resolvedMode,
+    preferences,
     availableThemes: CULTURAL_THEMES,
     setTheme,
+    setMode,
+    setPreferences,
     isLoading
   };
 
