@@ -4,6 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Clock, Users, Star, DollarSign, Globe } from 'lucide-react';
+import { createUniqueRecipeSlug } from '@/lib/utils/slug';
 import type { Recipe } from '@/types';
 
 interface RecipeCardProps {
@@ -35,10 +36,17 @@ export function RecipeCard({
     <div className={`bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 ${className}`}>
       {/* Recipe Image */}
       <div className="relative h-48 bg-gradient-to-br from-orange-400 to-red-500">
-        {/* Placeholder for recipe image - would use actual image in production */}
-        <div className="absolute inset-0 flex items-center justify-center text-white text-6xl opacity-20">
-          🍽️
-        </div>
+        {recipe.metadata?.imageUrl ? (
+          <img
+            src={`/api/image?url=${encodeURIComponent(recipe.metadata.imageUrl)}`}
+            alt={recipe.title}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-white text-6xl opacity-20">
+            🍽️
+          </div>
+        )}
         
         {/* Cultural Origin Badge */}
         <div className="absolute top-3 left-3">
@@ -157,7 +165,7 @@ export function RecipeCard({
         {showActions && (
           <div className="flex items-center justify-between pt-4 border-t border-gray-100">
             <Link
-              href={`/recipes/${recipe.id}`}
+              href={`/recipes/${createUniqueRecipeSlug(recipe.title, recipe.id)}`}
               className="text-orange-600 hover:text-orange-700 font-medium text-sm transition-colors"
             >
               View Recipe

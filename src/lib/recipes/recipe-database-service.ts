@@ -32,6 +32,8 @@ export interface CreateRecipeInput {
     totalTime: number;
     difficulty: 'easy' | 'medium' | 'hard';
     culturalAuthenticity: number;
+    imageUrl?: string;
+    sourceUrl?: string;
   };
   tags: string[];
   source: 'user' | 'spoonacular' | 'community';
@@ -176,6 +178,48 @@ export class RecipeDatabaseService {
       return this.mapDatabaseRecipeToType(data);
     } catch (error) {
       console.error('Failed to get recipe:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get recipe by partial ID (for legacy slug support)
+   */
+  async getRecipeByPartialId(partialId: string): Promise<Recipe | null> {
+    try {
+      const { data, error } = await this.supabase
+        .from('recipes')
+        .select(`
+          *,
+          recipe_ingredients (
+            id,
+            name,
+            amount,
+            unit,
+            optional,
+            notes
+          ),
+          recipe_ratings (
+            rating,
+            cost_rating,
+            authenticity_rating,
+            review,
+            user_id,
+            created_at
+          )
+        `)
+        .like('id', `${partialId}%`)
+        .limit(1)
+        .single();
+
+      if (error) {
+        console.error('Error fetching recipe by partial ID:', error);
+        return null;
+      }
+
+      return this.mapDatabaseRecipeToType(data);
+    } catch (error) {
+      console.error('Failed to get recipe by partial ID:', error);
       return null;
     }
   }

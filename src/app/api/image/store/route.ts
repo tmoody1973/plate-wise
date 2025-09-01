@@ -20,6 +20,7 @@ async function loadBytes(url: string) {
       'User-Agent': 'PlateWise-ImageStore/1.0',
       'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
       'Referer': `${new URL(url).origin}/`,
+      'Accept-Language': 'en-US,en;q=0.9',
     } as any,
     signal: controller.signal,
   })
@@ -35,14 +36,21 @@ async function loadBytes(url: string) {
   return { bytes: Buffer.from(ab), type: ct }
 }
 
-async function maybeSharpResize(bytes: Buffer): Promise<{ out: Buffer; type: string } | null> {
-  try {
-    const sharp = (await import('sharp')).default
-    const out = await sharp(bytes).resize({ width: 640, withoutEnlargement: true }).toFormat('webp', { quality: 82 }).toBuffer()
-    return { out, type: 'image/webp' }
-  } catch {
-    return null
-  }
+async function buildVariants(bytes: Buffer): Promise<{ thumb: Buffer; card: Buffer; hero: Buffer; lqip: string; palette: string[] }> {
+  const sharp = (await import('sharp')).default
+  const img = sharp(bytes).rotate()
+  const [thumb, card, hero, tiny, stats] = await Promise.all([
+    img.clone().resize({ width: 160, withoutEnlargement: true }).toFormat('webp', { quality: 80 }).toBuffer(),
+    img.clone().resize({ width: 640, withoutEnlargement: true }).toFormat('webp', { quality: 82 }).toBuffer(),
+    img.clone().resize({ width: 1280, withoutEnlargement: true }).toFormat('webp', { quality: 88 }).toBuffer(),
+    img.clone().resize({ width: 24, withoutEnlargement: true }).toFormat('webp', { quality: 40 }).toBuffer(),
+    img.clone().stats(),
+  ])
+  const dom = stats.dominant
+  const toHex = (n: number) => n.toString(16).padStart(2, '0')
+  const hex = `#${toHex(dom.r)}${toHex(dom.g)}${toHex(dom.b)}`
+  const lqip = `data:image/webp;base64,${tiny.toString('base64')}`
+  return { thumb, card, hero, lqip, palette: [hex] }
 }
 
 export async function POST(req: NextRequest) {
@@ -56,29 +64,41 @@ export async function POST(req: NextRequest) {
     const sb = getSupabase()
     try { await sb.storage.createBucket(bucket, { public: true }) } catch {}
 
-    const { bytes, type } = await loadBytes(url)
+    const { bytes } = await loadBytes(url)
     const contentHash = crypto.createHash('sha256').update(bytes).digest('hex')
-    const key = body.key || `${contentHash}.webp`
-    const resized = await maybeSharpResize(bytes)
-    const uploadBytes = resized?.out || bytes
-    const contentType = resized?.type || type
+    const baseKey = body.key || `${contentHash}`
 
-    // Delete if exists then upload
-    // If file with same hash already exists, skip upload
+    // If already processed, return existing URLs
     try {
-      const { data: listed } = await sb.storage.from(bucket).list(undefined, { search: key })
-      if (Array.isArray(listed) && listed.some(f => f.name === key)) {
-        const { data } = sb.storage.from(bucket).getPublicUrl(key)
-        return NextResponse.json({ ok: true, public_url: data.publicUrl, image_hash: contentHash, reused: true })
+      const { data: listed } = await sb.storage.from(bucket).list(`${baseKey}`)
+      if (Array.isArray(listed) && listed.some(f => f.name === 'card.webp')) {
+        const urls = {
+          thumb: sb.storage.from(bucket).getPublicUrl(`${baseKey}/thumb.webp`).data.publicUrl,
+          card: sb.storage.from(bucket).getPublicUrl(`${baseKey}/card.webp`).data.publicUrl,
+          hero: sb.storage.from(bucket).getPublicUrl(`${baseKey}/hero.webp`).data.publicUrl,
+        }
+        return NextResponse.json({ ok: true, public_urls: urls, image_hash: contentHash, reused: true })
       }
     } catch {}
 
-    await sb.storage.from(bucket).remove([key]).catch(() => {})
-    const { error: upErr } = await sb.storage.from(bucket).upload(key, uploadBytes, { contentType, upsert: true })
-    if (upErr) return NextResponse.json({ error: 'upload_failed', details: upErr.message }, { status: 500 })
-
-    const { data } = sb.storage.from(bucket).getPublicUrl(key)
-    return NextResponse.json({ ok: true, public_url: data.publicUrl, image_hash: contentHash, reused: false })
+    // Build and upload variants
+    const variants = await buildVariants(bytes)
+    const items = [
+      { key: `${baseKey}/thumb.webp`, buf: variants.thumb },
+      { key: `${baseKey}/card.webp`, buf: variants.card },
+      { key: `${baseKey}/hero.webp`, buf: variants.hero },
+    ]
+    await sb.storage.from(bucket).remove(items.map(i => i.key)).catch(() => {})
+    for (const it of items) {
+      const { error } = await sb.storage.from(bucket).upload(it.key, it.buf, { contentType: 'image/webp', upsert: true })
+      if (error) return NextResponse.json({ error: 'upload_failed', details: error.message }, { status: 500 })
+    }
+    const public_urls = {
+      thumb: sb.storage.from(bucket).getPublicUrl(`${baseKey}/thumb.webp`).data.publicUrl,
+      card: sb.storage.from(bucket).getPublicUrl(`${baseKey}/card.webp`).data.publicUrl,
+      hero: sb.storage.from(bucket).getPublicUrl(`${baseKey}/hero.webp`).data.publicUrl,
+    }
+    return NextResponse.json({ ok: true, public_urls, image_hash: contentHash, palette: variants.palette, lqip: variants.lqip, reused: false })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'failed' }, { status: 500 })
   }

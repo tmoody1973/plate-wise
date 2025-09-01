@@ -15,6 +15,7 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import type { Recipe } from '@/types';
 import type { CreateRecipeInput } from '@/lib/recipes/recipe-database-service';
 import type { SpoonacularRecipe } from '@/lib/external-apis/spoonacular-service';
+import { useToast } from '@/components/ui/toast';
 
 export default function RecipesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -24,6 +25,9 @@ export default function RecipesPage() {
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [parsedRecipe, setParsedRecipe] = useState<CreateRecipeInput | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [backfilling, setBackfilling] = useState(false)
+  const { user } = useAuthContext()
+  const { addToast } = useToast()
 
   const handleCreateRecipe = () => {
     setShowInputModal(true);
@@ -111,6 +115,26 @@ export default function RecipesPage() {
     setShowCreateForm(true);
   };
 
+  async function handleBackfill() {
+    if (!user?.id) return
+    try {
+      setBackfilling(true)
+      const res = await fetch('/api/recipes/refine-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      })
+      const j = await res.json()
+      if (!res.ok || !j?.ok) throw new Error(j?.error || 'Backfill failed')
+      addToast({ type: 'success', title: 'Backfill complete', message: `Updated ${j.updated}/${j.scanned} recipes` })
+      setRefreshTrigger(v => v + 1)
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Backfill failed', message: e?.message })
+    } finally {
+      setBackfilling(false)
+    }
+  }
+
   return (
     <ProtectedRoute>
       <DashboardLayout>
@@ -173,6 +197,18 @@ export default function RecipesPage() {
                 >
                   Discover New Recipes
                 </button>
+              </div>
+              <div>
+                {!showSpoonacularSearch && (
+                  <button
+                    onClick={handleBackfill}
+                    disabled={backfilling || !user}
+                    className="px-3 py-2 rounded-md border text-sm hover:bg-gray-50 disabled:opacity-50"
+                    title="Re-import missing units/images for your recipes"
+                  >
+                    {backfilling ? 'Backfilling…' : 'Backfill Missing' }
+                  </button>
+                )}
               </div>
             </div>
             

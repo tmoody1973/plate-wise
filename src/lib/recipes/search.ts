@@ -44,6 +44,7 @@ function buildInstruction(useWebSearch: boolean, detailed: boolean): string {
       'Use web_search to find authentic, non-paywalled recipe pages with clear ingredients and step-by-step instructions.',
       'Apply provided filters when present (country, includeIngredients, excludeIngredients, maxResults). If any are missing, proceed with sensible defaults and do not ask for more details.',
       'Return 5–10 unique recipes, include canonical source URL and representative image when available.',
+      'All URLs must be absolute and valid (begin with https://).',
       'Include difficulty for each recipe as one of: easy, medium, hard.',
       'Exclude any URL that appears in excludeSources. Use canonical URLs when possible.',
       detailed
@@ -58,6 +59,7 @@ function buildInstruction(useWebSearch: boolean, detailed: boolean): string {
     'Generate concise, high-quality recipe cards directly without browsing the web.',
     'Apply provided filters when present: country, includeIngredients, excludeIngredients, maxResults. If not provided, choose sensible defaults and proceed without asking for more details.',
     'Return 5–10 recipes. Include a plausible image URL when available; omit otherwise.',
+    'All URLs must be absolute and valid (begin with https://).',
     'Include difficulty for each recipe as one of: easy, medium, hard.',
     detailed
       ? 'Write detailed instructions: 2–4 sentences per step with heat levels, timing, pan size, texture cues, and doneness signals.'
@@ -179,7 +181,7 @@ async function callOpenAIStructured(
     // Locate recipes key and attempt to parse items one-by-one even if the array is not fully closed
     const keyIdx = s.indexOf('"recipes"')
     if (keyIdx === -1) return null
-    let arrStart = s.indexOf('[', keyIdx)
+    const arrStart = s.indexOf('[', keyIdx)
     if (arrStart === -1) return null
     let i = arrStart + 1
     const items: any[] = []
@@ -241,6 +243,20 @@ async function callOpenAIStructured(
 }
 
 function validateOutput(json: unknown): RecipesResponseT {
+  // Pre-sanitize meta.sources to avoid schema failures on bad URLs
+  try {
+    if (json && typeof json === 'object' && (json as any).meta) {
+      const meta = (json as any).meta
+      if (!Array.isArray(meta.sources)) {
+        meta.sources = []
+      } else {
+        meta.sources = meta.sources
+          .filter((s: any) => s && typeof s === 'object' && typeof s.url === 'string')
+          .map((s: any) => ({ url: String(s.url).trim(), title: s.title }))
+          .filter((s: any) => isValidUrl(s.url))
+      }
+    }
+  } catch {}
   const parsed = RecipesResponse.safeParse(json)
   if (!parsed.success) {
     const issues = parsed.error.issues
@@ -262,6 +278,7 @@ function isValidUrl(value: string): boolean {
 }
 
 function wrapToResponse(raw: any, filters: RecipeSearchFilters): any {
+  // If model returned a bare array, wrap it into the expected shape
   if (Array.isArray(raw)) {
     const recipes = raw
     const sources = recipes
@@ -282,6 +299,38 @@ function wrapToResponse(raw: any, filters: RecipeSearchFilters): any {
           excludeSources: filters.excludeSources,
         },
       },
+    }
+  }
+
+  // If model returned an object, ensure meta and used_filters are present
+  if (raw && typeof raw === 'object') {
+    if (!raw.meta || typeof raw.meta !== 'object') {
+      raw.meta = {}
+    }
+    // Ensure has_more
+    if (typeof raw.meta.has_more !== 'boolean') {
+      raw.meta.has_more = false
+    }
+    // Ensure sources
+    if (!Array.isArray(raw.meta.sources)) {
+      const derived = Array.isArray(raw.recipes)
+        ? raw.recipes
+            .map((r: any) => (r && typeof r.source === 'string' ? r.source : null))
+            .filter(Boolean)
+            .map((u: any) => ({ url: String(u) }))
+        : []
+      raw.meta.sources = derived
+    }
+    // Ensure used_filters
+    if (!raw.meta.used_filters || typeof raw.meta.used_filters !== 'object') {
+      raw.meta.used_filters = {
+        query: filters.query,
+        country: filters.country,
+        includeIngredients: filters.includeIngredients,
+        excludeIngredients: filters.excludeIngredients,
+        maxResults: filters.maxResults,
+        excludeSources: filters.excludeSources,
+      }
     }
   }
   return raw
@@ -335,6 +384,15 @@ function scrubStructuredOutput(raw: any, webMode: boolean): any {
       return r
     }).filter(Boolean)
   }
+  // Sanitize meta.sources to contain only valid absolute URLs
+  try {
+    if (raw.meta && Array.isArray(raw.meta.sources)) {
+      raw.meta.sources = raw.meta.sources
+        .filter((s: any) => s && typeof s === 'object' && typeof s.url === 'string')
+        .map((s: any) => ({ url: s.url.trim(), title: s.title }))
+        .filter((s: any) => isValidUrl(s.url))
+    }
+  } catch {}
   return raw
 }
 

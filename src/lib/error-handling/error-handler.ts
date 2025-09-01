@@ -118,7 +118,7 @@ class ErrorHandler {
 
       console.log('Error reported:', errorData);
     } catch (reportingError) {
-      logger.error('Failed to report error', reportingError);
+      logger.error('Failed to report error', reportingError as Error);
     }
   }
 

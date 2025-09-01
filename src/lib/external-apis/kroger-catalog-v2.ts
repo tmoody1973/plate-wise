@@ -69,7 +69,7 @@ export function normalizeV2ToV1Like(p: V2Product): any {
     productId: p.productId,
     description: p.description,
     categories: p.categories || [],
-    images: p.images?.length ? [{ url: p.images[0].url }] : [],
+    images: p.images?.length && p.images[0] ? [{ url: p.images[0].url }] : [],
     items: [{
       size: first?.size,
       price: {

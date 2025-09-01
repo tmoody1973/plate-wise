@@ -1,4 +1,51 @@
-import { CulturalTheme } from '@/types';
+import { CulturalTheme, ThemeColors } from '@/types';
+
+// Helper function to create theme colors
+const createThemeColors = (
+  primary: string,
+  secondary: string,
+  accent: string,
+  gradient: string[],
+  isDark: boolean = false
+): ThemeColors => {
+  if (isDark) {
+    return {
+      primary,
+      secondary,
+      accent,
+      gradient,
+      background: '#0f0f0f',
+      surface: '#1a1a1a',
+      card: '#262626',
+      foreground: '#fafafa',
+      muted: '#a3a3a3',
+      border: '#404040',
+      ring: primary,
+      success: '#22c55e',
+      warning: '#f59e0b',
+      error: '#ef4444',
+      info: '#3b82f6',
+    };
+  }
+  
+  return {
+    primary,
+    secondary,
+    accent,
+    gradient,
+    background: '#ffffff',
+    surface: '#f8fafc',
+    card: '#ffffff',
+    foreground: '#0f172a',
+    muted: '#64748b',
+    border: '#e2e8f0',
+    ring: primary,
+    success: '#16a34a',
+    warning: '#d97706',
+    error: '#dc2626',
+    info: '#2563eb',
+  };
+};
 
 export const CULTURAL_THEMES: CulturalTheme[] = [
   {
@@ -6,10 +53,8 @@ export const CULTURAL_THEMES: CulturalTheme[] = [
     name: 'mediterranean',
     displayName: 'Mediterranean',
     colors: {
-      primary: '#E67E22',
-      secondary: '#27AE60',
-      accent: '#3498DB',
-      gradient: ['#E67E22', '#F39C12', '#27AE60']
+      light: createThemeColors('#E67E22', '#27AE60', '#3498DB', ['#E67E22', '#F39C12', '#27AE60']),
+      dark: createThemeColors('#F39C12', '#2ECC71', '#5DADE2', ['#F39C12', '#E67E22', '#2ECC71'], true)
     },
     patterns: {
       background: 'olive-branch-pattern',
@@ -30,10 +75,8 @@ export const CULTURAL_THEMES: CulturalTheme[] = [
     name: 'asian',
     displayName: 'Asian Fusion',
     colors: {
-      primary: '#E74C3C',
-      secondary: '#F39C12',
-      accent: '#8E44AD',
-      gradient: ['#E74C3C', '#F39C12', '#8E44AD']
+      light: createThemeColors('#E74C3C', '#F39C12', '#8E44AD', ['#E74C3C', '#F39C12', '#8E44AD']),
+      dark: createThemeColors('#FF6B6B', '#FFB74D', '#BA68C8', ['#FF6B6B', '#FFB74D', '#BA68C8'], true)
     },
     patterns: {
       background: 'bamboo-pattern',
@@ -54,10 +97,8 @@ export const CULTURAL_THEMES: CulturalTheme[] = [
     name: 'latin',
     displayName: 'Latin American',
     colors: {
-      primary: '#FF6B6B',
-      secondary: '#4ECDC4',
-      accent: '#45B7D1',
-      gradient: ['#FF6B6B', '#4ECDC4', '#45B7D1']
+      light: createThemeColors('#FF6B6B', '#4ECDC4', '#45B7D1', ['#FF6B6B', '#4ECDC4', '#45B7D1']),
+      dark: createThemeColors('#FF8A80', '#4DD0E1', '#64B5F6', ['#FF8A80', '#4DD0E1', '#64B5F6'], true)
     },
     patterns: {
       background: 'aztec-pattern',
@@ -78,10 +119,8 @@ export const CULTURAL_THEMES: CulturalTheme[] = [
     name: 'african',
     displayName: 'African Heritage',
     colors: {
-      primary: '#D35400',
-      secondary: '#27AE60',
-      accent: '#F1C40F',
-      gradient: ['#D35400', '#27AE60', '#F1C40F']
+      light: createThemeColors('#D35400', '#27AE60', '#F1C40F', ['#D35400', '#27AE60', '#F1C40F']),
+      dark: createThemeColors('#FF7043', '#4CAF50', '#FFEB3B', ['#FF7043', '#4CAF50', '#FFEB3B'], true)
     },
     patterns: {
       background: 'kente-pattern',
@@ -102,10 +141,8 @@ export const CULTURAL_THEMES: CulturalTheme[] = [
     name: 'middle-eastern',
     displayName: 'Middle Eastern',
     colors: {
-      primary: '#8E44AD',
-      secondary: '#E67E22',
-      accent: '#16A085',
-      gradient: ['#8E44AD', '#E67E22', '#16A085']
+      light: createThemeColors('#8E44AD', '#E67E22', '#16A085', ['#8E44AD', '#E67E22', '#16A085']),
+      dark: createThemeColors('#AB47BC', '#FF8A65', '#26A69A', ['#AB47BC', '#FF8A65', '#26A69A'], true)
     },
     patterns: {
       background: 'persian-pattern',
@@ -126,10 +163,8 @@ export const CULTURAL_THEMES: CulturalTheme[] = [
     name: 'default',
     displayName: 'Global Fusion',
     colors: {
-      primary: '#f97316',
-      secondary: '#3b82f6',
-      accent: '#10b981',
-      gradient: ['#f97316', '#3b82f6', '#10b981']
+      light: createThemeColors('#f97316', '#3b82f6', '#10b981', ['#f97316', '#3b82f6', '#10b981']),
+      dark: createThemeColors('#fb923c', '#60a5fa', '#34d399', ['#fb923c', '#60a5fa', '#34d399'], true)
     },
     patterns: {
       background: 'neutral-pattern',

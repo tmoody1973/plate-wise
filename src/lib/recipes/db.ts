@@ -39,7 +39,7 @@ export async function upsertRecipes(recipes: RecipeT[]) {
         .filter('metadata->>source_url', 'eq', String(metadata.source_url))
         .limit(1)
       if (selErr) throw new Error(`Supabase select failed: ${selErr.message}`)
-      if (existing && existing.length > 0) existingId = existing[0].id
+      if (existing && existing.length > 0 && existing[0]) existingId = existing[0].id
     }
 
     const record: any = {

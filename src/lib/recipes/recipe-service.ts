@@ -62,7 +62,16 @@ export class RecipeService {
    * Get recipe by ID from database
    */
   async getRecipeById(id: string): Promise<Recipe | null> {
-    return await recipeDatabaseService.getRecipeById(id);
+    // First try exact match
+    let recipe = await recipeDatabaseService.getRecipeById(id);
+    
+    // If not found and ID looks like a partial ID (8 chars), try partial match
+    if (!recipe && id.length === 8 && /^[a-f0-9]{8}$/i.test(id)) {
+      console.log(`Trying partial ID lookup for: ${id}`);
+      recipe = await recipeDatabaseService.getRecipeByPartialId(id);
+    }
+    
+    return recipe;
   }
 
   /**
@@ -412,8 +421,17 @@ export class RecipeService {
 
       // Generate cost analysis if missing
       if (!recipe.costAnalysis && recipe.ingredients.length > 0) {
-        // TODO: Use AI to estimate costs
-        // enhancements.costAnalysis = await this.analyzeCostWithAI(recipe.ingredients);
+        const { estimateRecipeCost } = await import('./cost-estimator')
+        const { totalCost, costPerServing } = estimateRecipeCost(recipe.ingredients as any, recipe.metadata.servings)
+        enhancements.costAnalysis = {
+          totalCost,
+          costPerServing,
+          storeComparison: [],
+          seasonalTrends: [],
+          bulkBuyingOpportunities: [],
+          couponSavings: [],
+          alternativeIngredients: [],
+        }
       }
 
       return enhancements;

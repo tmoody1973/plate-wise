@@ -10,6 +10,17 @@ interface PricingRequest {
   ingredients: string[];
   location: string;
   storeId?: string;
+  userProfile?: {
+    location: {
+      zipCode: string;
+      city: string;
+      state: string;
+    };
+    preferences?: {
+      culturalCuisines?: string[];
+      savedStores?: any[];
+    };
+  };
 }
 
 interface EnhancedPriceResult {
@@ -36,15 +47,20 @@ interface EnhancedPricingResponse {
 
 class EnhancedPricingService {
   async getIngredientPricing(request: PricingRequest): Promise<EnhancedPricingResponse> {
-    const { ingredients, location, storeId } = request;
+    const { ingredients, location, storeId, userProfile } = request;
     const results: EnhancedPriceResult[] = [];
     const errors: string[] = [];
     let fallbacksUsed = 0;
 
-    console.log(`Getting pricing for ${ingredients.length} ingredients in ${location} using Perplexity as primary`);
+    // Use user profile location if available, fallback to provided location
+    const effectiveLocation = userProfile?.location?.zipCode || location;
+    const userCity = userProfile?.location?.city || '';
+    const userState = userProfile?.location?.state || '';
 
-    // First, try Perplexity API for all ingredients
-    const perplexityResults = await this.tryPerplexityPricing(ingredients, location);
+    console.log(`Getting pricing for ${ingredients.length} ingredients in ${effectiveLocation} (${userCity}, ${userState}) using Perplexity as primary`);
+
+    // First, try Perplexity API for all ingredients with enhanced location context
+    const perplexityResults = await this.tryPerplexityPricing(ingredients, effectiveLocation, userCity, userState, userProfile?.preferences?.culturalCuisines);
     
     // Identify ingredients that need fallback pricing
     const needsFallback: string[] = [];
@@ -76,7 +92,7 @@ class EnhancedPricingService {
       console.log(`Using Kroger fallback for ${needsFallback.length} ingredients`);
       
       try {
-        const krogerResults = await this.tryKrogerPricing(needsFallback, location, storeId);
+        const krogerResults = await this.tryKrogerPricing(needsFallback, effectiveLocation, storeId, userProfile);
         
         needsFallback.forEach((ingredient, index) => {
           const krogerResult = krogerResults[index];
@@ -97,7 +113,9 @@ class EnhancedPricingService {
           } else {
             // Last resort: basic estimates
             const estimate = this.getBasicEstimates([ingredient])[0];
-            results.push(estimate);
+            if (estimate) {
+              results.push(estimate);
+            }
             fallbacksUsed++;
           }
         });
@@ -126,14 +144,30 @@ class EnhancedPricingService {
     };
   }
 
-  private async tryPerplexityPricing(ingredients: string[], location: string): Promise<any[]> {
+  private async tryPerplexityPricing(
+    ingredients: string[], 
+    location: string, 
+    city?: string, 
+    state?: string, 
+    culturalCuisines?: string[]
+  ): Promise<any[]> {
     try {
-      console.log(`Trying Perplexity pricing for ${ingredients.length} ingredients`);
+      console.log(`Trying Perplexity pricing for ${ingredients.length} ingredients in ${location} (${city}, ${state})`);
+      
+      // Build store preference based on location and cultural preferences
+      let storePreference = 'Kroger, Walmart, Target, Safeway, local grocery stores';
+      if (culturalCuisines && culturalCuisines.length > 0) {
+        const culturalStores = culturalCuisines.includes('mexican') ? 'Mexican markets, carnicerías' :
+                               culturalCuisines.includes('chinese') || culturalCuisines.includes('asian') ? 'Asian markets, Chinese grocery stores' :
+                               culturalCuisines.includes('indian') ? 'Indian grocery stores, spice markets' :
+                               'ethnic markets';
+        storePreference = `${culturalStores}, ${storePreference}`;
+      }
       
       const perplexityResponse = await perplexityPricingService.getIngredientPrices({
         ingredients,
-        location,
-        storePreference: 'Kroger, Walmart, Target, Safeway, local grocery stores'
+        location: city && state ? `${city}, ${state} ${location}` : location,
+        storePreference
       });
 
       if (perplexityResponse.success && perplexityResponse.data.length > 0) {
@@ -164,24 +198,31 @@ class EnhancedPricingService {
     }
   }
 
-  private async tryKrogerPricing(ingredients: string[], location: string, storeId?: string): Promise<any[]> {
+  private async tryKrogerPricing(
+    ingredients: string[], 
+    location: string, 
+    storeId?: string, 
+    userProfile?: any
+  ): Promise<any[]> {
     try {
       const results = await Promise.all(
         ingredients.map(async (ingredient) => {
           try {
-            const searchResults = await krogerService.searchProducts(ingredient, location);
+            const searchResults = await krogerService.searchProducts({ query: ingredient });
             
             if (searchResults && searchResults.length > 0) {
               const bestMatch = searchResults[0];
-              return {
-                ingredient,
-                estimatedCost: bestMatch.price || 0,
-                unit: bestMatch.unit || 'each',
-                store: 'Kroger',
-                confidence: 0.8,
-                product: bestMatch,
-                alternatives: searchResults.slice(1, 4)
-              };
+              if (bestMatch) {
+                return {
+                  ingredient,
+                  estimatedCost: bestMatch.price || 0,
+                  unit: bestMatch.unit || 'each',
+                  store: 'Kroger',
+                  confidence: 0.8,
+                  product: bestMatch,
+                  alternatives: searchResults.slice(1, 4)
+                };
+              }
             }
             return null;
           } catch (error) {

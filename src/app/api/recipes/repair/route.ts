@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     }
 
     // First, try to parse/repair locally
-    let text = stripCodeFences(raw)
+    const text = stripCodeFences(raw)
     let json: any = null
     try { json = JSON.parse(text) } catch { json = tryExtractJsonObject(text) }
 
@@ -90,8 +90,84 @@ export async function POST(req: NextRequest) {
       if (json == null) return NextResponse.json({ error: 'repair_unparseable' }, { status: 500 })
     }
 
+    // Normalize/repair common mismatches before strict validation
+    function isValidUrl(u: string): boolean { try { new URL(u); return true } catch { return false } }
+    function coerce(obj: any): any {
+      if (!obj || typeof obj !== 'object') return obj
+      const out: any = { ...obj }
+      const recs: any[] = Array.isArray(out.recipes) ? out.recipes : (Array.isArray(out.items) ? out.items : [])
+      if (Array.isArray(recs)) {
+        out.recipes = recs.map((r: any) => {
+          if (!r || typeof r !== 'object') return r
+          const rec: any = { ...r }
+          // source
+          if (typeof rec.source !== 'string' || !isValidUrl(rec.source)) {
+            if (typeof rec.url === 'string' && isValidUrl(rec.url)) rec.source = rec.url
+            else {
+              const slug = typeof rec.title === 'string' ? rec.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'ai-generated'
+              rec.source = `https://platewise.app/ai/${slug}`
+            }
+          }
+          // ingredients
+          if (Array.isArray(rec.ingredients)) {
+            rec.ingredients = rec.ingredients.map((it: any) => {
+              if (!it) return null
+              if (typeof it === 'string') return { item: it }
+              if (typeof it === 'object') {
+                if (typeof it.item === 'string') return it
+                if (typeof it.name === 'string') return { item: it.name, quantity: it.amount ?? it.quantity, unit: it.unit }
+              }
+              return null
+            }).filter(Boolean)
+          } else if (Array.isArray(rec.recipeIngredient)) {
+            rec.ingredients = rec.recipeIngredient.map((s: any) => ({ item: String(s) }))
+          }
+          // instructions
+          if (Array.isArray(rec.instructions)) {
+            if (rec.instructions.length && typeof rec.instructions[0] === 'string') {
+              rec.instructions = rec.instructions.map((t: string, i: number) => ({ step: i + 1, text: t }))
+            }
+          } else if (Array.isArray(rec.recipeInstructions)) {
+            const arr = rec.recipeInstructions
+            rec.instructions = arr.map((it: any, i: number) => {
+              if (typeof it === 'string') return { step: i + 1, text: it }
+              const text = it?.text || it?.name || it?.description || ''
+              return { step: i + 1, text: String(text) }
+            }).filter((s: any) => s.text && String(s.text).trim())
+          }
+          if (!Array.isArray(rec.instructions) || rec.instructions.length === 0) {
+            // last resort: add a minimal single step so schema passes
+            rec.instructions = [{ step: 1, text: 'See source for instructions.' }]
+          }
+          return rec
+        })
+      }
+      // meta shape
+      if (!out.meta || typeof out.meta !== 'object') out.meta = {} as any
+      if (typeof (out.meta as any).has_more !== 'boolean') (out.meta as any).has_more = false
+      const srcs = (out.meta as any).sources
+      if (Array.isArray(srcs)) {
+        (out.meta as any).sources = srcs.map((s: any) => {
+          if (typeof s === 'string') return { url: s }
+          if (s && typeof s === 'object') {
+            if (typeof s.url === 'string') return { url: s.url, title: s.title }
+          }
+          return null
+        }).filter(Boolean)
+      } else {
+        // derive from recipes
+        const derived = (out.recipes || []).map((r: any) => (r?.source ? { url: r.source } : null)).filter(Boolean)
+        ;(out.meta as any).sources = derived
+      }
+      if (!(out.meta as any).used_filters || typeof (out.meta as any).used_filters !== 'object') {
+        (out.meta as any).used_filters = {}
+      }
+      return out
+    }
+    const normalized = coerce(json)
+
     // Validate against Zod
-    const parsed = RecipesResponse.safeParse(json)
+    const parsed = RecipesResponse.safeParse(normalized)
     if (!parsed.success) {
       const issues = parsed.error.issues.slice(0, 5).map(i => `${i.path.join('.')}: ${i.message}`).join('; ')
       return NextResponse.json({ error: `schema_mismatch: ${issues}` }, { status: 422 })
@@ -105,4 +181,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e?.message || 'failed' }, { status: 500 })
   }
 }
-

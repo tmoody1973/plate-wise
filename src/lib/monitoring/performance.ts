@@ -78,12 +78,14 @@ class PerformanceMonitor {
     new PerformanceObserver((list) => {
       const entries = list.getEntries();
       const lastEntry = entries[entries.length - 1];
-      this.recordMetric({
-        name: 'LCP',
-        value: lastEntry.startTime,
-        unit: 'ms',
-        timestamp: new Date(),
-      });
+      if (lastEntry) {
+        this.recordMetric({
+          name: 'LCP',
+          value: lastEntry.startTime,
+          unit: 'ms',
+          timestamp: new Date(),
+        });
+      }
     }).observe({ entryTypes: ['largest-contentful-paint'] });
 
     // First Input Delay (FID)

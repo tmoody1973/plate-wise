@@ -526,8 +526,27 @@ export class RecipeAnalysisService {
 
           if (products.length > 0) {
             const product = products[0];
-            const ingredientCost = (ingredient.amount || 0) * (product?.price?.regular || 0);
-            totalCost += ingredientCost;
+            // Prefer promo price if available
+            const price = (product?.price?.promo ?? product?.price?.regular) ?? 0;
+            const sizeStr = product?.size;
+            // Try to parse pack size like "15 oz", "500 g", "1 lb", "12 fl oz"
+            const { parsePackSize, estimateIngredientCost, normalizeUnit } = await import('@/utils/units');
+            const parsed = parsePackSize(sizeStr);
+            if (parsed && price) {
+              const { estimatedCost } = estimateIngredientCost({
+                quantity: ingredient.amount || 0,
+                unit: ingredient.unit || 'each',
+                packSize: parsed.qty,
+                packUnit: parsed.unit,
+                packPrice: price,
+              });
+              totalCost += estimatedCost;
+            } else {
+              // Fallback: treat as each
+              const u = normalizeUnit(ingredient.unit || 'each') || 'each'
+              const qty = u === 'each' ? Math.max(1, Math.ceil(ingredient.amount || 0)) : (ingredient.amount || 0)
+              totalCost += Math.max(0, price) * (qty || 0);
+            }
           }
         } catch (error) {
           console.error(`Failed to get pricing for ${ingredient.name}:`, error);

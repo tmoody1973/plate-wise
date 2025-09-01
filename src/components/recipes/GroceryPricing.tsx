@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react'
 import { ShoppingCart, MapPin, DollarSign, AlertCircle, Check, X, Star, Search, Plus } from 'lucide-react'
 import type { Recipe } from '@/types'
+import { parsePackSize, estimatePacksNeeded, normalizeUnit } from '@/utils/units'
 
 export interface GroceryPricingItem {
   id: number
@@ -16,6 +17,14 @@ export interface GroceryPricingItem {
   packageSize?: string
   portionCost?: number
   packagePrice?: number
+  // Optional: enhanced pricing comparison
+  bestPriceSummary?: string // e.g., "$1.00/lb at Cermak"
+  seasonalNote?: string
+  compare?: {
+    ethnic?: { store: string; price: string; tags?: string[] }[]
+    mainstream?: { store: string; price: string; tags?: string[] }[]
+    bulk?: { store: string; price: string; tags?: string[] }[]
+  }
 }
 
 interface GroceryPricingProps {
@@ -32,6 +41,7 @@ interface GroceryPricingProps {
   onRefreshPrices: () => void
   onSearchItem: (index: number) => void
   onReviewItem: (index: number) => void
+  onChangeStore?: (index: number, storeOption: any) => void
 }
 
 export function GroceryPricing({
@@ -48,8 +58,10 @@ export function GroceryPricing({
   onRefreshPrices,
   onSearchItem,
   onReviewItem,
+  onChangeStore,
 }: GroceryPricingProps) {
   const [added, setAdded] = useState<Set<number>>(new Set())
+  const [openCompare, setOpenCompare] = useState<number | null>(null)
 
   const totalEstimated = useMemo(() => items.reduce((s, it) => s + (it.estimatedCost || 0), 0), [items])
   const reviewCount = items.filter(i => i.needsReview).length
@@ -137,7 +149,17 @@ export function GroceryPricing({
 
       {/* Items */}
       <div className="space-y-4">
-        {items.map((it, idx) => (
+        {items.map((it, idx) => {
+          let derivedPacks: number | undefined
+          if (!it.packages && it.packageSize) {
+            const ing = recipe.ingredients.find(r => r.name.toLowerCase().trim() === it.original.toLowerCase().trim())
+            const parsed = parsePackSize(it.packageSize)
+            if (ing && parsed) {
+              const u = normalizeUnit(ing.unit) || 'each'
+              derivedPacks = estimatePacksNeeded(ing.amount || 0, u, parsed.qty, parsed.unit)
+            }
+          }
+          return (
           <div key={it.id} className={`border rounded-xl p-4 ${it.needsReview ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-white'}`}>
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
@@ -155,23 +177,119 @@ export function GroceryPricing({
                     </>
                   )}
                 </div>
+                {typeof it.portionCost === 'number' && (
+                  <div className="text-sm text-green-700 font-medium mb-1">
+                    Recipe portion: ${it.portionCost.toFixed(2)}
+                  </div>
+                )}
                 <div className="text-gray-600 text-sm flex items-center gap-2">
                   {it.priceLabel && <span>{it.priceLabel}</span>}
-                  {it.packages && it.packageSize && (
-                    <span className="text-xs text-gray-600 bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5">{it.packages} × {it.packageSize}</span>
-                  )}
-                  {typeof it.portionCost === 'number' && (
-                    <span className="text-xs text-gray-500">portion ~${it.portionCost.toFixed(2)}</span>
-                  )}
-                  {typeof it.packagePrice === 'number' && (
-                    <span className="text-xs text-gray-500">full pack ~${it.packagePrice.toFixed(2)}</span>
+                  {(it.packages || derivedPacks) && it.packageSize && (
+                    <span className="text-xs text-gray-600 bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5">{it.packages || derivedPacks} × {it.packageSize}</span>
                   )}
                 </div>
+
+                {/* Compact best price + compare toggle */}
+                {(it.bestPriceSummary || it.compare) && (
+                  <div className="mt-2 flex items-center gap-3 text-sm">
+                    {it.bestPriceSummary && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Cheapest: {it.bestPriceSummary}
+                      </span>
+                    )}
+                    {it.seasonalNote && (
+                      <span className="inline-flex items-center gap-1 text-gray-500">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">{it.seasonalNote}</span>
+                      </span>
+                    )}
+                    {it.compare && (
+                      <button
+                        className="ml-auto text-blue-700 hover:underline"
+                        onClick={() => setOpenCompare(openCompare === it.id ? null : it.id)}
+                        aria-expanded={openCompare === it.id}
+                      >
+                        {openCompare === it.id ? 'Hide comparison' : 'Compare prices'}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Collapsible comparison panel */}
+                {openCompare === it.id && it.compare && (
+                  <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden">
+                    {/* Ethnic / Specialty */}
+                    {it.compare.ethnic && it.compare.ethnic.length > 0 && (
+                      <div className="p-3 border-b border-gray-100">
+                        <div className="text-xs font-semibold text-gray-600 mb-1">Ethnic / Specialty</div>
+                        <div className="divide-y">
+                          {it.compare.ethnic.slice(0, 3).map((o, i) => (
+                            <div key={o.store + i} className="flex items-center justify-between py-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{o.store}</span>
+                                {(o.tags || []).map(t => (
+                                  <span key={t} className="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded border">
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="text-sm tabular-nums">{o.price}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mainstream Grocery */}
+                    {it.compare.mainstream && it.compare.mainstream.length > 0 && (
+                      <div className="p-3 border-b border-gray-100">
+                        <div className="text-xs font-semibold text-gray-600 mb-1">Mainstream Grocery</div>
+                        <div className="divide-y">
+                          {it.compare.mainstream.slice(0, 3).map((o, i) => (
+                            <div key={o.store + i} className="flex items-center justify-between py-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{o.store}</span>
+                                {(o.tags || []).map(t => (
+                                  <span key={t} className="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded border">
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="text-sm tabular-nums">{o.price}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Bulk */}
+                    {it.compare.bulk && it.compare.bulk.length > 0 && (
+                      <div className="p-3">
+                        <div className="text-xs font-semibold text-gray-600 mb-1">Bulk</div>
+                        <div className="divide-y">
+                          {it.compare.bulk.slice(0, 3).map((o, i) => (
+                            <div key={o.store + i} className="flex items-center justify-between py-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{o.store}</span>
+                                {(o.tags || []).map(t => (
+                                  <span key={t} className="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded border">
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="text-sm tabular-nums">{o.price}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-2xl font-bold text-gray-900">${it.estimatedCost.toFixed(2)}</div>
-                  <div className="text-sm text-gray-500">estimated</div>
+                  <div className="text-2xl font-bold text-gray-900">${(it.packagePrice || it.estimatedCost).toFixed(2)}</div>
+                  <div className="text-sm text-gray-500">store price</div>
                 </div>
                 <button onClick={() => handleAdd(it.id as number)} className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${added.has(it.id) ? 'bg-green-100 text-green-800 border-green-300' : 'bg-purple-600 text-white border-purple-600 hover:bg-purple-700'}`}>
                   {added.has(it.id) ? (<><Check className="w-4 h-4" /> Added</>) : (<><Plus className="w-4 h-4" /> Add to Cart</>)}
@@ -187,7 +305,8 @@ export function GroceryPricing({
               </div>
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

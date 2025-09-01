@@ -5,6 +5,10 @@ import { useRecipeSearch, useRecipeSearchMore } from '@/hooks/useRecipeWebSearch
 import { useToast } from '@/components/ui/toast'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { recipeDatabaseService } from '@/lib/recipes/recipe-database-service'
+import { recipeService, type CreateRecipeInput } from '@/lib/recipes'
+import { createUniqueRecipeSlug } from '@/lib/utils/slug'
+import { useProfileSetup } from '@/hooks/useProfileSetup'
+import { normalizeIngredients } from '@/lib/recipes/ingredient-normalizer'
 
 type Props = {
   className?: string
@@ -26,6 +30,7 @@ export function OpenAIWebSearch({ className }: Props) {
   const searchMore = useRecipeSearchMore()
   const { addToast } = useToast()
   const { user } = useAuthContext()
+  const { profile } = useProfileSetup()
 
   const filters = useMemo(() => {
     return {
@@ -50,6 +55,7 @@ export function OpenAIWebSearch({ className }: Props) {
     try {
       const res = await search.mutateAsync(filters)
       setPreviousResults(res.results)
+      repairMissingInResults(res.results)
       const ids = (res.rows || []).map((r: any) => r.id).filter(Boolean)
       addToast({
         type: 'success',
@@ -68,6 +74,7 @@ export function OpenAIWebSearch({ className }: Props) {
     try {
       const res = await searchMore.mutateAsync({ previous: previousResults, ...filters })
       setPreviousResults(res.results)
+      repairMissingInResults(res.results)
       const ids = (res.rows || []).map((r: any) => r.id).filter(Boolean)
       addToast({
         type: 'success',
@@ -96,6 +103,50 @@ export function OpenAIWebSearch({ className }: Props) {
   const [showExport, setShowExport] = useState(false)
   const repairAttemptedRef = React.useRef<Set<string>>(new Set())
 
+  function RecipeThumb({ r, idx }: { r: any; idx: number }) {
+    const raw = r?.metadata?.image_set?.card || r?.metadata?.image_url || r.image || r.image_url || r.img_url
+    const src = raw ? `/api/image?url=${encodeURIComponent(raw)}` : ''
+    const placeholder = r?.metadata?.lqip || ''
+    const bg = (r?.metadata?.palette && Array.isArray(r.metadata.palette) && r.metadata.palette[0]) || '#f3f4f6'
+    const [loaded, setLoaded] = React.useState(false)
+    return (
+      <div className="w-14 h-14 rounded overflow-hidden border relative" style={{ backgroundColor: bg }}>
+        {!loaded && placeholder ? (
+          <img src={placeholder} alt="" className="absolute inset-0 w-full h-full object-cover blur-sm" />
+        ) : null}
+        {src ? (
+          <img
+            src={src}
+            alt={r.title}
+            className={`w-full h-full object-cover ${loaded ? '' : 'opacity-0'}`}
+            onLoad={() => setLoaded(true)}
+            onError={async (e) => {
+              const imgEl = e.currentTarget as HTMLImageElement | null
+              if (imgEl) imgEl.onerror = null
+              const key = r.source || String(idx)
+              if (repairAttemptedRef.current.has(key)) return
+              const fixed = await repairImageFor(r.source, r.title)
+              if (fixed && imgEl) {
+                repairAttemptedRef.current.add(key)
+                imgEl.src = `/api/image?url=${encodeURIComponent(fixed)}`
+                setPreviousResults((prev: any) => {
+                  if (!prev) return prev
+                  const copy = { ...prev, recipes: [...prev.recipes] }
+                  copy.recipes[idx] = { ...copy.recipes[idx], image: fixed, metadata: { ...(copy.recipes[idx].metadata || {}), image_url: fixed } }
+                  return copy
+                })
+              } else if (imgEl) {
+                imgEl.style.display = 'none'
+              }
+            }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">No image</div>
+        )}
+      </div>
+    )
+  }
+
   async function repairImageFor(source: string, title: string): Promise<string | null> {
     try {
       const res = await fetch('/api/recipes/repair-image', {
@@ -109,6 +160,36 @@ export function OpenAIWebSearch({ className }: Props) {
     } catch {
       return null
     }
+  }
+
+  // Attempt to repair/store images for any results that have no image URL
+  async function repairMissingInResults(results: any, limit: number = 6) {
+    try {
+      const list: Array<{ idx: number; r: any }> = (results?.recipes || [])
+        .map((r: any, idx: number) => ({ idx, r }))
+        .filter(({ r }: { r: any }) => !(
+          r?.metadata?.image_url || r?.image || r?.image_url || r?.img_url
+        ))
+        .slice(0, limit)
+      if (!list.length) return
+      await Promise.all(list.map(async ({ idx, r }) => {
+        const key = r.source || String(idx)
+        if (repairAttemptedRef.current.has(key)) return
+        const fixed = await repairImageFor(r.source, r.title)
+        if (fixed) {
+          repairAttemptedRef.current.add(key)
+          setPreviousResults((prev: any) => {
+            if (!prev) return prev
+            const copy = { ...prev, recipes: [...prev.recipes] }
+            const cur = { ...copy.recipes[idx] }
+            cur.image = fixed
+            cur.metadata = { ...(cur.metadata || {}), image_url: fixed }
+            copy.recipes[idx] = cur
+            return copy
+          })
+        }
+      }))
+    } catch {}
   }
 
   function buildSupabasePayload() {
@@ -134,6 +215,141 @@ export function OpenAIWebSearch({ className }: Props) {
       is_public: true,
     }))
     return JSON.stringify(payload, null, 2)
+  }
+
+  async function saveOneToMyRecipes(r: any) {
+    try {
+      if (!user?.id) {
+        addToast({ type: 'warning', title: 'Sign in required', message: 'Please sign in to save recipes.' })
+        return
+      }
+      const fracToNumber = (s: string): number => {
+        // supports "1/2", "1 1/2", "2", "2.5"
+        const parts = s.trim().split(/\s+/)
+        const p0 = parts[0] || ''
+        const p1 = parts[1] || ''
+        if (parts.length === 2 && /\d+[\/\d]+/.test(p1) && /^\d+$/.test(p0)) {
+          const whole = parseFloat(p0)
+          const [a, b] = p1.split('/')
+          const frac = parseFloat(a || '0') / parseFloat(b || '1')
+          return whole + (isFinite(frac) ? frac : 0)
+        }
+        if (/\d+\/\d+/.test(s)) {
+          const [a, b] = s.split('/')
+          const frac = parseFloat(a || '0') / parseFloat(b || '1')
+          return isFinite(frac) ? frac : 0
+        }
+        const n = parseFloat(s)
+        return Number.isFinite(n) ? n : 0
+      }
+      const parseQty = (q: unknown): number => {
+        if (q == null) return 0
+        if (typeof q === 'number') return q
+        if (typeof q === 'string') {
+          const m = q.match(/(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)/)
+          return m ? fracToNumber(m[1]!) : 0
+        }
+        return 0
+      }
+      const knownUnits = ['cup','cups','tablespoon','tablespoons','tbsp','teaspoon','teaspoons','tsp','oz','ounce','ounces','lb','pound','pounds','g','gram','grams','kg','ml','l','liter','liters','clove','cloves','sprig','sprigs','can','cans']
+      const extractUnit = (q: unknown, item: string, unit?: string): string => {
+        if (unit && String(unit).trim()) return String(unit).trim()
+        const texts = [typeof q === 'string' ? q : '', item]
+        for (const t of texts) {
+          const m = (t || '').toLowerCase().match(new RegExp(`\\b(${knownUnits.join('|')})\\b`))
+          if (m) return m[1]!
+        }
+        return ''
+      }
+      const stripLeadingQtyUnit = (item: string, qty: number, unit: string): string => {
+        let s = item.trim()
+        if (!s) return s
+        // Remove patterns like "2 cups" or "1 1/2 cup" at start
+        s = s.replace(/^\s*\d+\s+\d+\/\d+\s+\w+\s+/i, '')
+        s = s.replace(/^\s*\d+\/\d+\s+\w+\s+/i, '')
+        s = s.replace(/^\s*\d+(?:\.\d+)?\s+\w+\s+/i, '')
+        s = s.replace(/^\s*\d+(?:\.\d+)?\s+/, '')
+        return s.trim()
+      }
+      let baseIngredients = Array.isArray(r.ingredients) ? r.ingredients : []
+      // If many units are missing but we have a source URL, try server-side HTML import for richer structure
+      try {
+        const missingUnits = baseIngredients.filter((ing: any) => !ing?.unit).length
+        if (r?.source && baseIngredients.length && missingUnits / baseIngredients.length >= 0.4) {
+          const res = await fetch('/api/recipes/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: r.source }),
+          })
+          if (res.ok) {
+            const j = await res.json()
+            if (j?.data?.recipe?.ingredients?.length) {
+              baseIngredients = j.data.recipe.ingredients
+            }
+          }
+        }
+      } catch {}
+
+      const ingredients = baseIngredients.map((ing: any, i: number) => {
+        const qty = parseQty(ing.quantity)
+        const unit = extractUnit(ing.quantity, String(ing.item || ''), ing.unit)
+        const nameRaw = String(ing.item || '').trim()
+        const name = stripLeadingQtyUnit(nameRaw, qty, unit) || nameRaw || `Ingredient ${i + 1}`
+        return {
+          id: `ing_${i + 1}`,
+          name,
+          amount: qty,
+          unit,
+          culturalName: undefined,
+          substitutes: [],
+          costPerUnit: 0,
+          availability: [],
+        }
+      })
+
+      const preferFresh = Boolean((profile as any)?.preferences?.preferFreshProduce ?? true)
+      const normalizedIngredients = normalizeIngredients(ingredients, { preferFreshProduce: preferFresh })
+      const instructions = (Array.isArray(r.instructions) ? r.instructions : []).map((it: any, i: number) => ({
+        step: typeof it.step === 'number' && it.step > 0 ? it.step : i + 1,
+        description: String(it.text || '').trim() || `Step ${i + 1}`,
+      }))
+
+      const input: CreateRecipeInput = {
+        title: String(r.title || 'Untitled Recipe'),
+        description: String(r.description || ''),
+        culturalOrigin: [],
+        cuisine: String(r.cuisine || 'international'),
+        ingredients: normalizedIngredients,
+        instructions,
+        metadata: {
+          servings: typeof r.servings === 'number' && r.servings > 0 ? r.servings : 4,
+          prepTime: 0,
+          cookTime: 0,
+          totalTime: typeof r.total_time_minutes === 'number' ? r.total_time_minutes : 0,
+          difficulty: (r.difficulty === 'easy' || r.difficulty === 'medium' || r.difficulty === 'hard') ? r.difficulty : 'medium',
+          culturalAuthenticity: 0,
+          imageUrl: (r?.metadata?.image_url || r.image || r.image_url || r.img_url) || undefined,
+          sourceUrl: r?.source || undefined,
+        },
+        tags: [],
+        source: 'user',
+      }
+
+      const saved = await recipeService.createRecipe(input, user.id)
+      if (!saved) throw new Error('Failed to save recipe')
+      const slug = createUniqueRecipeSlug(saved.title, saved.id)
+      addToast({ type: 'success', title: 'Saved to My Recipes', message: saved.title })
+      // Optimistically record the new row id for quick visibility
+      setLastRows(prev => [{ id: saved.id }, ...prev])
+      // Offer quick navigation
+      try {
+        // Small, unobtrusive redirect link via window.open in a new tab
+        // Commented out to avoid unexpected navigation; keep toast only
+        // window.open(`/recipes/${slug}`, '_blank')
+      } catch {}
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Save failed', message: e?.message || 'Could not save recipe' })
+    }
   }
 
   return (
@@ -260,6 +476,7 @@ export function OpenAIWebSearch({ className }: Props) {
                     const payload = JSON.parse(ev.data)
                     if (payload.ok && payload.results) {
                       setPreviousResults(payload.results)
+                      repairMissingInResults(payload.results)
                       setLastRows(payload.rows || [])
                       const ids = (payload.rows || []).map((r: any) => r.id).filter(Boolean)
                       addToast({ type: 'success', title: `Upserted ${payload.rows?.length ?? 0} recipes`, message: ids.slice(0,8).join(', ') })
@@ -366,45 +583,52 @@ export function OpenAIWebSearch({ className }: Props) {
         {previousResults?.recipes && (
           <div className="mt-4">
             <h3 className="font-semibold mb-2">Results</h3>
+            <div className="mb-2 flex gap-2">
+              <button
+                className="px-3 py-1 rounded border hover:bg-gray-100"
+                onClick={() => previousResults && repairMissingInResults(previousResults, 12)}
+              >
+                Repair images
+              </button>
+              <button
+                className="px-3 py-1 rounded border hover:bg-gray-100"
+                onClick={async () => {
+                  try {
+                    const items = (previousResults?.recipes || []).filter((r: any) => !(
+                      r?.metadata?.image_url || r?.image || r?.image_url || r?.img_url
+                    )).map((r: any) => ({ source: r.source, title: r.title }))
+                    if (!items.length) { addToast({ type: 'info', title: 'No missing images' }); return }
+                    const res = await fetch('/api/recipes/images/repair-bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) })
+                    const j = await res.json()
+                    if (!res.ok) throw new Error(j?.error || 'bulk_failed')
+                    addToast({ type: 'success', title: `Bulk repaired ${j.repaired}/${j.total}` })
+                    // Merge any found URLs into the UI
+                    const map: Record<string, string> = {}
+                    for (const r of (j.results || [])) if (r.ok && r.image_url) map[r.source] = r.image_url
+                    setPreviousResults((prev: any) => {
+                      if (!prev) return prev
+                      const copy = { ...prev, recipes: [...prev.recipes] }
+                      copy.recipes = copy.recipes.map((r: any) => (map[r.source] ? { ...r, image: map[r.source], metadata: { ...(r.metadata || {}), image_url: map[r.source] } } : r))
+                      return copy
+                    })
+                  } catch (e: any) {
+                    addToast({ type: 'error', title: 'Bulk repair failed', message: e?.message })
+                  }
+                }}
+              >
+                Repair all (background)
+              </button>
+            </div>
             <ul className="divide-y divide-gray-200 border rounded">
               {previousResults.recipes.map((r: any, idx: number) => {
-                const rawImageUrl = r?.metadata?.image_url || r.image || r.image_url || r.img_url
+                const rawImageUrl = r?.metadata?.image_set?.card || r?.metadata?.image_url || r.image || r.image_url || r.img_url
                 const imageUrl = rawImageUrl ? `/api/image?url=${encodeURIComponent(rawImageUrl)}` : ''
                 const time = r.total_time_minutes
                 const difficulty = r.difficulty || r?.metadata?.difficulty
                 return (
                   <li key={r.source + idx} className="p-3 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      {imageUrl ? (
-                        // Thumbnail preview if an image URL is available
-                        <img
-                          src={imageUrl}
-                          alt={r.title}
-                          className="w-14 h-14 rounded object-cover bg-gray-100 border"
-                          loading="lazy"
-                          onError={async (e) => {
-                            const key = r.source || String(idx)
-                            if (repairAttemptedRef.current.has(key)) return
-                            repairAttemptedRef.current.add(key)
-                            const fixed = await repairImageFor(r.source, r.title)
-                            if (fixed) {
-                              ;(e.currentTarget as HTMLImageElement).src = `/api/image?url=${encodeURIComponent(fixed)}`
-                              setPreviousResults((prev: any) => {
-                                if (!prev) return prev
-                                const copy = { ...prev, recipes: [...prev.recipes] }
-                                copy.recipes[idx] = { ...copy.recipes[idx], image: fixed }
-                                return copy
-                              })
-                            } else {
-                              ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-                            }
-                          }}
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded bg-gray-100 border flex items-center justify-center text-xs text-gray-400">
-                          No image
-                        </div>
-                      )}
+                      <RecipeThumb r={r} idx={idx} />
                       <div>
                         <div className="font-medium">{r.title}</div>
                         <a href={r.source} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline">
@@ -412,10 +636,20 @@ export function OpenAIWebSearch({ className }: Props) {
                         </a>
                       </div>
                     </div>
-                    <div className="text-sm text-gray-600 whitespace-nowrap">
-                      {typeof time === 'number' ? `${time} min` : 'Time: —'}
-                      {` · `}
-                      {difficulty ? `Difficulty: ${String(difficulty)}` : 'Difficulty: —'}
+                    <div className="flex items-center gap-3">
+                      <div className="text-sm text-gray-600 whitespace-nowrap">
+                        {typeof time === 'number' ? `${time} min` : 'Time: —'}
+                        {` · `}
+                        {difficulty ? `Difficulty: ${String(difficulty)}` : 'Difficulty: —'}
+                      </div>
+                      <button
+                        className="px-3 py-1 rounded border hover:bg-gray-100 text-sm"
+                        onClick={() => saveOneToMyRecipes(r)}
+                        disabled={!user || isBusy}
+                        title={!user ? 'Sign in to save' : 'Save to My Recipes'}
+                      >
+                        Save to My Recipes
+                      </button>
                     </div>
                   </li>
                 )

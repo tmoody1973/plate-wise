@@ -8,6 +8,7 @@ import { useAuthContext } from '@/contexts/AuthContext'
 import { DashboardLayout } from '@/components/layout/AppLayout'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { recipeDatabaseService } from '@/lib/recipes/recipe-database-service'
+import { createUniqueRecipeSlug } from '@/lib/utils/slug'
 
 type Collection = {
   id: string
@@ -88,7 +89,7 @@ export default function CollectionDetailPage() {
                           <div className="font-medium">{r.title}</div>
                           <div className="text-sm text-gray-600">{r.cuisine || 'international'}</div>
                         </div>
-                        <Link href={`/recipes/${r.id}`} className="text-sm text-blue-600 hover:underline">
+                        <Link href={`/recipes/${createUniqueRecipeSlug(r.title, r.id)}`} className="text-sm text-blue-600 hover:underline">
                           View
                         </Link>
                       </li>

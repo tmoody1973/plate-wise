@@ -127,7 +127,7 @@ export interface GroceryStore {
   priceLevel?: number;
   openNow?: boolean;
   openingHours?: string[];
-  storeType: 'supermarket' | 'grocery' | 'specialty' | 'ethnic' | 'organic' | 'farmers_market';
+  storeType: 'supermarket' | 'grocery' | 'specialty' | 'global' | 'organic' | 'farmers_market';
   specialties: string[];
   distance?: number;
   photos: string[];
@@ -483,8 +483,8 @@ export class GooglePlacesService {
       return 'organic';
     }
     
-    if (this.isEthnicMarket(name)) {
-      return 'ethnic';
+    if (this.isGlobalMarket(name)) {
+      return 'global';
     }
     
     if (name.includes('specialty') || name.includes('gourmet')) {
@@ -499,10 +499,10 @@ export class GooglePlacesService {
   }
 
   /**
-   * Check if store is an ethnic market
+   * Check if store is a global market
    */
-  private isEthnicMarket(name: string): boolean {
-    const ethnicKeywords = [
+  private isGlobalMarket(name: string): boolean {
+    const globalKeywords = [
       'asian', 'chinese', 'japanese', 'korean', 'thai', 'vietnamese',
       'indian', 'pakistani', 'bangladeshi',
       'mexican', 'latino', 'hispanic',
@@ -512,7 +512,7 @@ export class GooglePlacesService {
       'halal', 'kosher', 'international'
     ];
 
-    return ethnicKeywords.some(keyword => name.includes(keyword));
+    return globalKeywords.some(keyword => name.includes(keyword));
   }
 
   /**
@@ -599,9 +599,9 @@ export class GooglePlacesService {
       }
     });
 
-    // Check for general ethnic market indicators
-    const ethnicKeywords = ['international', 'ethnic', 'world', 'global', 'imported'];
-    if (ethnicKeywords.some(keyword => name.includes(keyword))) {
+    // Check for general global market indicators
+    const globalMarketKeywords = ['international', 'world', 'global', 'imported'];
+    if (globalMarketKeywords.some(keyword => name.includes(keyword))) {
       score += 0.2;
     }
 
@@ -678,6 +678,266 @@ export class GooglePlacesService {
       seen.add(market.id);
       return true;
     });
+  }
+
+  /**
+   * Validate and correct store address using Google Places
+   */
+  async validateStoreAddress(
+    storeName: string,
+    currentAddress: string,
+    city: string = 'Milwaukee, WI'
+  ): Promise<{
+    isValid: boolean;
+    correctedAddress?: string;
+    placeId?: string;
+    phone?: string;
+    website?: string;
+    rating?: number;
+    verification: 'verified' | 'corrected' | 'not_found';
+  }> {
+    try {
+      // First, try to find the exact store by name and location
+      const searchQuery = `${storeName} ${city}`;
+      
+      const response = await this.makeRequest<{ results: PlaceResult[] }>('/textsearch/json', {
+        query: searchQuery,
+        type: 'grocery_or_supermarket'
+      });
+
+      if (response.results && response.results.length > 0) {
+        // Find the best match
+        let bestMatch = response.results[0];
+        let bestScore = this.calculateStoreNameMatch(storeName, bestMatch.name);
+
+        // Check all results for better matches
+        for (const result of response.results) {
+          const score = this.calculateStoreNameMatch(storeName, result.name);
+          if (score > bestScore) {
+            bestMatch = result;
+            bestScore = score;
+          }
+        }
+
+        // Only accept matches with reasonable confidence
+        if (bestScore > 0.6) {
+          // Get additional details
+          const details = await this.getPlaceDetails(bestMatch.place_id);
+          
+          // Check if the address matches or is close
+          const addressMatch = this.compareAddresses(currentAddress, bestMatch.formatted_address);
+          
+          return {
+            isValid: addressMatch > 0.8,
+            correctedAddress: bestMatch.formatted_address,
+            placeId: bestMatch.place_id,
+            phone: details?.formatted_phone_number,
+            website: details?.website,
+            rating: bestMatch.rating,
+            verification: addressMatch > 0.8 ? 'verified' : 'corrected'
+          };
+        }
+      }
+
+      // If no good match found, try a more general search
+      const fallbackQuery = `grocery store ${storeName.split(' ')[0]} ${city}`;
+      const fallbackResponse = await this.makeRequest<{ results: PlaceResult[] }>('/textsearch/json', {
+        query: fallbackQuery
+      });
+
+      if (fallbackResponse.results && fallbackResponse.results.length > 0) {
+        const fallbackMatch = fallbackResponse.results[0];
+        return {
+          isValid: false,
+          correctedAddress: fallbackMatch.formatted_address,
+          placeId: fallbackMatch.place_id,
+          verification: 'corrected'
+        };
+      }
+
+      return {
+        isValid: false,
+        verification: 'not_found'
+      };
+
+    } catch (error) {
+      console.error('Store address validation failed:', error);
+      return {
+        isValid: false,
+        verification: 'not_found'
+      };
+    }
+  }
+
+  /**
+   * Batch validate multiple store addresses
+   */
+  async validateMultipleStores(
+    stores: Array<{
+      storeName: string;
+      address: string;
+      city?: string;
+    }>
+  ): Promise<Array<{
+    storeName: string;
+    originalAddress: string;
+    isValid: boolean;
+    correctedAddress?: string;
+    placeId?: string;
+    phone?: string;
+    website?: string;
+    rating?: number;
+    verification: 'verified' | 'corrected' | 'not_found';
+  }>> {
+    const results = [];
+
+    for (const store of stores) {
+      try {
+        const validation = await this.validateStoreAddress(
+          store.storeName,
+          store.address,
+          store.city || 'Milwaukee, WI'
+        );
+
+        results.push({
+          storeName: store.storeName,
+          originalAddress: store.address,
+          ...validation
+        });
+
+        // Add small delay to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+      } catch (error) {
+        console.error(`Failed to validate ${store.storeName}:`, error);
+        results.push({
+          storeName: store.storeName,
+          originalAddress: store.address,
+          isValid: false,
+          verification: 'not_found' as const
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Get verified Milwaukee grocery stores
+   */
+  async getMilwaukeeStores(
+    storeNames: string[]
+  ): Promise<Array<{
+    name: string;
+    address: string;
+    placeId: string;
+    phone?: string;
+    website?: string;
+    rating?: number;
+    location: { lat: number; lng: number };
+  }>> {
+    const verifiedStores = [];
+
+    for (const storeName of storeNames) {
+      try {
+        const validation = await this.validateStoreAddress(storeName, '', 'Milwaukee, WI');
+        
+        if (validation.verification !== 'not_found' && validation.correctedAddress) {
+          // Get location details
+          const details = validation.placeId 
+            ? await this.getPlaceDetails(validation.placeId)
+            : null;
+
+          verifiedStores.push({
+            name: storeName,
+            address: validation.correctedAddress,
+            placeId: validation.placeId || '',
+            phone: validation.phone,
+            website: validation.website,
+            rating: validation.rating,
+            location: details?.geometry?.location || { lat: 0, lng: 0 }
+          });
+        }
+
+        // Rate limit protection
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+      } catch (error) {
+        console.error(`Failed to get details for ${storeName}:`, error);
+      }
+    }
+
+    return verifiedStores;
+  }
+
+  /**
+   * Calculate similarity score between two store names
+   */
+  private calculateStoreNameMatch(name1: string, name2: string): number {
+    const normalize = (str: string) => str.toLowerCase().replace(/[^\w]/g, '');
+    const n1 = normalize(name1);
+    const n2 = normalize(name2);
+
+    // Exact match
+    if (n1 === n2) return 1.0;
+
+    // Check if one contains the other
+    if (n1.includes(n2) || n2.includes(n1)) return 0.9;
+
+    // Check individual words
+    const words1 = n1.split(' ').filter(w => w.length > 2);
+    const words2 = n2.split(' ').filter(w => w.length > 2);
+    
+    let matchCount = 0;
+    for (const word1 of words1) {
+      for (const word2 of words2) {
+        if (word1.includes(word2) || word2.includes(word1)) {
+          matchCount++;
+          break;
+        }
+      }
+    }
+
+    return words1.length > 0 ? matchCount / words1.length : 0;
+  }
+
+  /**
+   * Compare two addresses for similarity
+   */
+  private compareAddresses(address1: string, address2: string): number {
+    const normalize = (addr: string) => 
+      addr.toLowerCase()
+          .replace(/\b(street|st|avenue|ave|road|rd|drive|dr|lane|ln|way|place|pl)\b/g, '')
+          .replace(/[^\w\s]/g, '')
+          .trim();
+
+    const norm1 = normalize(address1);
+    const norm2 = normalize(address2);
+
+    if (norm1 === norm2) return 1.0;
+
+    // Extract key components (numbers, street names)
+    const nums1 = address1.match(/\d+/g) || [];
+    const nums2 = address2.match(/\d+/g) || [];
+    
+    // Check if street numbers match
+    const numberMatch = nums1.length > 0 && nums2.length > 0 && nums1[0] === nums2[0];
+    
+    // Check word overlap
+    const words1 = norm1.split(' ').filter(w => w.length > 2);
+    const words2 = norm2.split(' ').filter(w => w.length > 2);
+    
+    let wordMatches = 0;
+    for (const word1 of words1) {
+      if (words2.some(word2 => word1.includes(word2) || word2.includes(word1))) {
+        wordMatches++;
+      }
+    }
+
+    const wordScore = words1.length > 0 ? wordMatches / words1.length : 0;
+    
+    // Combine number and word matching
+    return numberMatch ? Math.max(0.5, wordScore) : wordScore * 0.8;
   }
 
   /**

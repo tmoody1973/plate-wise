@@ -65,8 +65,25 @@ export async function POST(req: NextRequest) {
       if (!error && data) targetId = data.id
     }
 
-    // Try page OG image first
-    let imageUrl = await fetchOgImage(sourceUrl)
+    // Try server extractor first for best candidates
+    let imageUrl: string | null = null
+    try {
+      const extractRes = await fetch(new URL('/api/extract-recipe', req.nextUrl).toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: sourceUrl }),
+      })
+      const ej = await extractRes.json().catch(() => ({}))
+      if (extractRes.ok && Array.isArray(ej?.images) && ej.images.length) {
+        const best = await pickBestImageUrl(title, ej.images, new URL(sourceUrl).hostname.replace(/^www\./, ''))
+        if (best) imageUrl = best
+      }
+    } catch {}
+
+    // Fallback: page OG image
+    if (!imageUrl) {
+      imageUrl = await fetchOgImage(sourceUrl)
+    }
 
     // Fall back to OpenAI image enrichment
     if (!imageUrl) {
@@ -103,6 +120,9 @@ export async function POST(req: NextRequest) {
 
     // Upload to Supabase Storage for stability
     let publicUrl: string | null = null
+    let variants: any
+    let palette: any
+    let lqip: any
     try {
       const storeRes = await fetch(new URL('/api/image/store', req.nextUrl).toString(), {
         method: 'POST',
@@ -110,7 +130,11 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({ url: imageUrl }),
       })
       const js = await storeRes.json().catch(() => ({}))
-      if (storeRes.ok && js?.public_url) publicUrl = js.public_url
+      if (storeRes.ok && (js?.public_urls?.card || js?.public_url)) publicUrl = (js.public_urls?.card || js.public_url)
+      // Merge variants/metadata if provided
+      variants = js?.public_urls
+      palette = js?.palette
+      lqip = js?.lqip
     } catch {}
     const finalUrl = publicUrl || imageUrl
 
@@ -122,7 +146,7 @@ export async function POST(req: NextRequest) {
         .eq('id', targetId)
         .single()
       if (selErr || !row) return NextResponse.json({ error: 'recipe_not_found' }, { status: 404 })
-      const meta = { ...(row as any).metadata, image_url: finalUrl }
+      const meta = { ...(row as any).metadata, image_url: finalUrl, image_set: variants || (row as any).metadata?.image_set, palette: palette || (row as any).metadata?.palette, lqip: lqip || (row as any).metadata?.lqip }
       const { error: upErr } = await supabase
         .from('recipes')
         .update({ metadata: meta })
@@ -137,7 +161,7 @@ export async function POST(req: NextRequest) {
         .limit(1)
         .single()
       if (!selErr && row) {
-        const meta = { ...(row as any).metadata, image_url: finalUrl }
+        const meta = { ...(row as any).metadata, image_url: finalUrl, image_set: variants || (row as any).metadata?.image_set, palette: palette || (row as any).metadata?.palette, lqip: lqip || (row as any).metadata?.lqip }
         const { error: upErr } = await supabase
           .from('recipes')
           .update({ metadata: meta })
@@ -146,7 +170,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, image_url: finalUrl })
+    return NextResponse.json({ ok: true, image_url: finalUrl, image_set: variants, palette, lqip })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'failed' }, { status: 500 })
   }
@@ -159,7 +183,7 @@ async function pickBestImageUrl(title: string, candidates: string[], domain: str
   const exts = /(\.jpg|\.jpeg|\.png|\.webp|\.gif)(\?|#|$)/i
   const sameDomain = list.filter(u => { try { return new URL(u).hostname.includes(domain) } catch { return false } })
   const extFiltered = (sameDomain.length ? sameDomain : list).filter(u => exts.test(u))
-  let pick = extFiltered[0] || list[0]
+  const pick = extFiltered[0] || list[0] || null
   try {
     // Ask OpenAI to choose the best match to the title among provided candidates
     const apiKey = process.env.OPENAI_API_KEY

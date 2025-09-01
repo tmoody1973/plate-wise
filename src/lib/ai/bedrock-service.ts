@@ -322,6 +322,17 @@ export class BedrockService {
   }
 
   /**
+   * Generate text response for a given prompt
+   */
+  async generateText(prompt: string): Promise<string> {
+    await this.rateLimiter.checkLimit();
+    
+    return this.circuitBreaker.execute(async () => {
+      return await this.invokeModel(prompt);
+    });
+  }
+
+  /**
    * Core method to invoke Bedrock model
    */
   private async invokeModel(prompt: string): Promise<string> {

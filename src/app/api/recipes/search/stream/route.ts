@@ -3,6 +3,8 @@ import OpenAI from 'openai'
 import { recipesJsonSchema } from '@/lib/recipes/schema'
 import { upsertRecipes } from '@/lib/recipes/db'
 import { enrichMissingImages as enrichImagesInternal } from '@/lib/recipes/search'
+import { parseRecipeFromHtml } from '@/lib/recipes/html-recipe-parser'
+import { searchRecipesFast } from '@/lib/recipes/search'
 
 function toCSV(arr?: string[] | null) {
   return (arr || []).filter(Boolean).join(',')
@@ -230,7 +232,7 @@ export async function GET(req: NextRequest) {
         function tryExtractRecipesArray(s: string): any[] | null {
           const keyIdx = s.indexOf('"recipes"')
           if (keyIdx === -1) return null
-          let arrStart = s.indexOf('[', keyIdx)
+          const arrStart = s.indexOf('[', keyIdx)
           if (arrStart === -1) return null
           let i = arrStart + 1
           const items: any[] = []
@@ -395,9 +397,45 @@ export async function GET(req: NextRequest) {
             })
 
             if (!validRecipes.length) {
+              // 1) Try to hydrate from discovered source URLs on the streamed result
               try {
-                const { searchRecipes } = await import('@/lib/recipes/search')
-                const data = await searchRecipes({ ...filters, detailedInstructions: detailed })
+                const urls: string[] = (results?.meta?.sources || []).map((s: any) => s?.url).filter(Boolean)
+                const picked = urls.slice(0, Math.min(10, Math.max(1, Number(filters.maxResults || 5))))
+                const ua = 'PlateWise-Importer/1.0'
+                const hydrated: any[] = []
+                for (const url of picked) {
+                  try {
+                    const res = await fetch(url, { headers: { 'User-Agent': ua } as any })
+                    if (!res.ok) continue
+                    const html = await res.text()
+                    const { recipe } = parseRecipeFromHtml(url, html)
+                    if (!recipe) continue
+                    const mapped = {
+                      title: recipe.title,
+                      description: recipe.description || '',
+                      cuisine: recipe.cuisine || 'international',
+                      source: url,
+                      image: undefined as string | undefined,
+                      servings: recipe.metadata?.servings || undefined,
+                      total_time_minutes: recipe.metadata?.totalTime || undefined,
+                      difficulty: (recipe.metadata?.difficulty as any) || undefined,
+                      ingredients: (recipe.ingredients || []).map((ing: any) => ({ item: ing.name, quantity: ing.amount, unit: ing.unit })),
+                      instructions: (recipe.instructions || []).map((st: any) => ({ step: st.step || 1, text: st.description || '' })),
+                      nutrition: undefined,
+                    }
+                    if (mapped.ingredients.length && mapped.instructions.length && mapped.title) hydrated.push(mapped)
+                  } catch {}
+                }
+                if (hydrated.length) {
+                  const { rows } = await upsertRecipes(hydrated as any)
+                  await finishWith({ ok: true, results: { recipes: hydrated, meta: results.meta }, rows })
+                  return
+                }
+              } catch {}
+
+              // 2) As a last resort, synthesize valid cards with the fast model
+              try {
+                const data = await searchRecipesFast({ ...filters, maxResults: 5 })
                 const { rows } = await upsertRecipes(data.recipes || [])
                 await finishWith({ ok: true, results: data, rows })
               } catch (e: any) {

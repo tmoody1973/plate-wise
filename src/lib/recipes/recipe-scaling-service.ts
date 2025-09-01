@@ -3,7 +3,7 @@
  * Handles recipe scaling, cost analysis, and ingredient substitutions
  */
 
-import { krogerService } from '@/lib/external-apis/kroger-service';
+// Removed Kroger service - now using Perplexity as primary pricing source
 import type { Recipe, Ingredient, CostAnalysis } from '@/types';
 
 export interface ScaledRecipe {
@@ -360,73 +360,156 @@ export class RecipeScalingService {
   }
 
   /**
-   * Analyze individual ingredient cost
+   * Analyze individual ingredient cost using Perplexity
    */
   private async analyzeIngredientCost(ingredient: Ingredient, userLocation?: string) {
-    const unitCost = await this.getIngredientPrice(ingredient.name, userLocation);
-    const totalCost = unitCost * ingredient.amount;
-
-    // Check availability
-    const availability = await this.checkIngredientAvailability(ingredient.name, userLocation);
-
-    // Generate alternatives if expensive or unavailable
-    const alternatives = [];
-    if (unitCost > 5 || availability !== 'available') {
-      // Generate cost-effective alternatives
-      alternatives.push({
-        name: `Generic ${ingredient.name}`,
-        cost: unitCost * 0.7,
-        culturalImpact: 'minimal' as const,
+    try {
+      const response = await fetch('/api/pricing/perplexity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ingredients: [ingredient],
+          location: userLocation || '90210',
+          culturalContext: 'general'
+        }),
       });
-    }
 
-    return {
-      ingredient,
-      unitCost,
-      totalCost,
-      availability,
-      alternatives,
-    };
+      let unitCost = 0;
+      let totalCost = 0;
+      let availability: 'available' | 'limited' | 'unavailable' = 'limited';
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+          const result = data.results[0];
+          unitCost = result.packagePrice || 0;
+          totalCost = result.portionCost || result.estimatedCost || 0;
+          availability = result.packagePrice > 0 ? 'available' : 'unavailable';
+        }
+      } else {
+        console.warn(`Perplexity API failed for ${ingredient.name}, using fallback`);
+        // Fallback to simple estimation
+        unitCost = this.getEstimatedPrice(ingredient.name);
+        totalCost = unitCost * ingredient.amount;
+        availability = 'limited';
+      }
+
+      // Generate alternatives if expensive or unavailable
+      const alternatives = [];
+      if (unitCost > 5 || availability !== 'available') {
+        alternatives.push({
+          name: `Generic ${ingredient.name}`,
+          cost: unitCost * 0.7,
+          culturalImpact: 'minimal' as const,
+        });
+      }
+
+      return {
+        ingredient,
+        unitCost,
+        totalCost,
+        availability,
+        alternatives,
+        priceConfidence: availability === 'available' ? 0.8 : 0.5,
+        notes: availability !== 'available' ? ['Limited availability'] : [],
+      };
+
+    } catch (error) {
+      console.error(`Error analyzing cost for ${ingredient.name}:`, error);
+      // Fallback to simple estimation
+      const unitCost = this.getEstimatedPrice(ingredient.name);
+      const totalCost = unitCost * ingredient.amount;
+      
+      return {
+        ingredient,
+        unitCost,
+        totalCost,
+        availability: 'limited' as const,
+        alternatives: [],
+        priceConfidence: 0.3,
+        notes: ['Price estimated due to API error'],
+      };
+    }
   }
 
   /**
-   * Get ingredient price from Kroger API
+   * Simple price estimation fallback
+   */
+  private getEstimatedPrice(ingredientName: string): number {
+    const name = ingredientName.toLowerCase();
+    // Basic price estimates for common ingredients
+    if (name.includes('salt') || name.includes('pepper')) return 2;
+    if (name.includes('oil') || name.includes('butter')) return 4;
+    if (name.includes('flour') || name.includes('sugar')) return 3;
+    if (name.includes('meat') || name.includes('chicken') || name.includes('beef')) return 8;
+    if (name.includes('cheese')) return 6;
+    if (name.includes('milk')) return 4;
+    if (name.includes('egg')) return 3;
+    if (name.includes('vegetable') || name.includes('onion') || name.includes('tomato')) return 2;
+    if (name.includes('herb') || name.includes('spice')) return 3;
+    return 4; // Default estimate
+  }
+
+  /**
+   * Get ingredient price using Perplexity API
    */
   private async getIngredientPrice(ingredientName: string, userLocation?: string): Promise<number> {
     try {
-      const products = await krogerService.searchProducts({
-        query: ingredientName,
-        storeId: userLocation || 'default'
+      const response = await fetch('/api/pricing/perplexity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ingredients: [{ name: ingredientName }],
+          location: userLocation || '90210',
+          culturalContext: 'general'
+        }),
       });
-      if (products.length > 0) {
-        return products[0]?.price?.regular || 0;
+
+      if (!response.ok) {
+        throw new Error(`Perplexity API failed: ${response.status}`);
       }
-      return 0;
+
+      const data = await response.json();
+      if (data.results && data.results.length > 0) {
+        return data.results[0].packagePrice || 0;
+      }
+      return this.getEstimatedPrice(ingredientName);
     } catch (error) {
       console.error(`Failed to get price for ${ingredientName}:`, error);
-      return 0;
+      return this.getEstimatedPrice(ingredientName);
     }
   }
 
   /**
-   * Check ingredient availability
+   * Check ingredient availability using Perplexity
    */
   private async checkIngredientAvailability(
     ingredientName: string,
     userLocation?: string
   ): Promise<'available' | 'limited' | 'unavailable'> {
     try {
-      const products = await krogerService.searchProducts({
-        query: ingredientName,
-        storeId: userLocation || 'default'
+      const response = await fetch('/api/pricing/perplexity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ingredients: [{ name: ingredientName }],
+          location: userLocation || '90210',
+          culturalContext: 'general'
+        }),
       });
-      if (products.length > 0) {
+
+      if (!response.ok) {
+        throw new Error(`Perplexity API failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.results && data.results.length > 0 && data.results[0].packagePrice > 0) {
         return 'available';
       }
       return 'unavailable';
     } catch (error) {
       console.error(`Failed to check availability for ${ingredientName}:`, error);
-      return 'limited';
+      return 'limited'; // Assume limited availability on error
     }
   }
 

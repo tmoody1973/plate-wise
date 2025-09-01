@@ -771,7 +771,7 @@ export class LocationService {
   private estimateShoppingTime(items: ShoppingItem[], store: LocalFoodSource): number {
     // Base time + time per item + store type modifier
     let baseTime = 15; // 15 minutes base
-    let timePerItem = 2; // 2 minutes per item
+    const timePerItem = 2; // 2 minutes per item
     
     if (store.type === 'farmers_market') {
       baseTime += 10; // More time for browsing
@@ -796,7 +796,7 @@ export class LocationService {
     // Simple nearest-neighbor optimization
     const orderedStops: ShoppingStop[] = [];
     let currentLocation = userLocation;
-    let remainingStops = [...stops];
+    const remainingStops = [...stops];
 
     while (remainingStops.length > 0) {
       const nearestIndex = this.findNearestStoreIndex(currentLocation, remainingStops);

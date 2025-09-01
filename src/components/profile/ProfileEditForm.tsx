@@ -77,6 +77,18 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
   const [storeZip, setStoreZip] = useState('');
   const [stores, setStores] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedStore, setSelectedStore] = useState<{ id?: string; name?: string }>({});
+  const [loadingChains, setLoadingChains] = useState(false);
+  const [savingChains, setSavingChains] = useState(false);
+  const [chainSuggestions, setChainSuggestions] = useState<Array<{
+    placeId: string;
+    chain: string;
+    name: string;
+    address: string;
+    rating?: number;
+    userRatingsTotal?: number;
+    types: string[];
+    selected: boolean;
+  }>>([]);
 
   // Initialize form data when profile loads
   useEffect(() => {
@@ -98,6 +110,7 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
           dietaryRestrictions: profile.preferences?.dietaryRestrictions || [],
           allergies: profile.preferences?.allergies || [],
           dislikes: profile.preferences?.dislikes || [],
+          preferFreshProduce: (profile.preferences as any)?.preferFreshProduce ?? true,
           // Additional fields from wizard (stored as metadata)
           // culturalBackground: (profile.preferences as any)?.culturalBackground || [],
           // traditionalCookingMethods: (profile.preferences as any)?.traditionalCookingMethods || [],
@@ -276,6 +289,46 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
           </select>
         </div>
       </div>
+      <div className="border-t border-gray-200 pt-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <div className="text-sm font-medium text-gray-700">Suggest Major Chains</div>
+            <div className="text-xs text-gray-500">Based on your city and ZIP</div>
+          </div>
+          <button
+            onClick={fetchChainSuggestions}
+            className="px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-100 disabled:opacity-50"
+            disabled={loadingChains || !profile?.location?.city}
+          >{loadingChains ? 'Finding…' : 'Suggest Major Chains'}</button>
+        </div>
+        {chainSuggestions.length > 0 && (
+          <div className="space-y-2">
+            {chainSuggestions.map((s, idx) => (
+              <label key={s.placeId} className="flex items-start gap-3 p-3 border rounded-lg">
+                <input
+                  type="checkbox"
+                  checked={s.selected}
+                  onChange={() => toggleChainSelection(idx)}
+                />
+                <div className="text-sm">
+                  <div className="font-medium text-gray-900">{s.name} <span className="text-gray-500">({s.chain})</span></div>
+                  <div className="text-gray-600">{s.address}</div>
+                  {s.rating ? (
+                    <div className="text-xs text-gray-500">Rating {s.rating} · {s.userRatingsTotal || 0} reviews</div>
+                  ) : null}
+                </div>
+              </label>
+            ))}
+            <div className="flex justify-end">
+              <button
+                onClick={saveSelectedChains}
+                className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                disabled={savingChains || !chainSuggestions.some(s => s.selected)}
+              >{savingChains ? 'Saving…' : 'Save Selected Stores'}</button>
+            </div>
+          </div>
+        )}
+      </div>
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-600">
           {selectedStore.name ? `Selected: ${selectedStore.name}` : 'No store selected'}
@@ -289,6 +342,51 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
       <p className="text-xs text-gray-500">This store is used for live price checks and shopping plans. You can change it anytime.</p>
     </div>
   );
+
+  async function fetchChainSuggestions() {
+    try {
+      if (!profile?.location?.city) return
+      setLoadingChains(true)
+      const params = new URLSearchParams({
+        city: profile.location.city || '',
+        state: profile.location.state || '',
+        zip: profile.location.zipCode || '',
+        limit: '8',
+      })
+      const res = await fetch(`/api/stores/suggest?${params.toString()}`, { cache: 'no-store' as any })
+      if (!res.ok) throw new Error(`suggest ${res.status}`)
+      const json = await res.json()
+      const list = (json.data || []).map((s: any) => ({ ...s, selected: true }))
+      setChainSuggestions(list)
+    } catch (e) {
+      addToast({ type: 'error', title: 'Suggestion failed', message: 'Could not fetch store suggestions' })
+    } finally {
+      setLoadingChains(false)
+    }
+  }
+
+  function toggleChainSelection(index: number) {
+    setChainSuggestions(prev => prev.map((s, i) => (i === index ? { ...s, selected: !s.selected } : s)))
+  }
+
+  async function saveSelectedChains() {
+    try {
+      const toSave = chainSuggestions.filter(s => s.selected)
+      if (toSave.length === 0) return
+      setSavingChains(true)
+      const res = await fetch('/api/stores/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stores: toSave }),
+      })
+      if (!res.ok) throw new Error('save failed')
+      addToast({ type: 'success', title: 'Stores saved', message: `${toSave.length} stores added to your profile` })
+    } catch (e) {
+      addToast({ type: 'error', title: 'Save failed', message: 'Could not save selected stores' })
+    } finally {
+      setSavingChains(false)
+    }
+  }
 
   const renderPersonalSection = () => (
     <div className="space-y-4">
@@ -558,6 +656,20 @@ export function ProfileEditForm({ profile, onUpdate, onRefresh }: ProfileEditFor
 
   const renderDietarySection = () => (
     <div className="space-y-6">
+      {/* Ingredient Preferences */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Ingredient Preferences</label>
+        <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={Boolean((formData.preferences as any)?.preferFreshProduce)}
+            onChange={(e) => handleFieldChange('preferFreshProduce', e.target.checked, 'preferences')}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span>Prefer fresh produce (e.g., treat “lemon juice” as fresh lemons when possible)</span>
+        </label>
+      </div>
+
       {/* Dietary Restrictions */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-3">

@@ -111,7 +111,7 @@ graph TB
 - **File Storage**: Supabase Storage for recipe images and user uploads
 
 **AI & Intelligence:**
-- **Primary AI**: Amazon Bedrock (Claude 3.5 Sonnet for complex reasoning)
+- **Primary AI**: Perplexity AI API
 - **Voice Processing**: ElevenLabs for text-to-speech and voice synthesis
 - **Recipe Parsing**: Custom NLP pipeline using Bedrock
 - **Cost Optimization**: Machine learning models for price prediction

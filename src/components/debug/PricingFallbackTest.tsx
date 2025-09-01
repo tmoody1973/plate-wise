@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { EnhancedPricingPanel } from '@/components/recipes/EnhancedPricingPanel';
+// import { EnhancedPricingPanel } from '@/components/recipes/EnhancedPricingPanel'; // Component not implemented yet
 
 export function PricingFallbackTest() {
   const [ingredients, setIngredients] = useState<string[]>([
@@ -25,9 +25,7 @@ export function PricingFallbackTest() {
     setIngredients(ingredients.filter((_, i) => i !== index));
   };
 
-  const handlePricingUpdate = (totalCost: number, confidence: number) => {
-    console.log(`Pricing updated: $${totalCost.toFixed(2)} with ${Math.round(confidence * 100)}% confidence`);
-  };
+  // Removed handlePricingUpdate as EnhancedPricingPanel is not implemented
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -79,7 +77,7 @@ export function PricingFallbackTest() {
                 type="text"
                 value={customIngredient}
                 onChange={(e) => setCustomIngredient(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && addIngredient()}
+                onKeyDown={(e) => e.key === 'Enter' && addIngredient()}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Add ingredient..."
               />
@@ -96,11 +94,12 @@ export function PricingFallbackTest() {
 
       {/* Enhanced Pricing Panel */}
       {ingredients.length > 0 && location && (
-        <EnhancedPricingPanel
-          ingredients={ingredients}
-          location={location}
-          onPricingUpdate={handlePricingUpdate}
-        />
+        <div className="bg-gray-100 rounded-lg p-6">
+          <p className="text-gray-600">EnhancedPricingPanel component not implemented yet.</p>
+          <p className="text-sm text-gray-500 mt-2">
+            Would show pricing for: {ingredients.join(', ')} in {location}
+          </p>
+        </div>
       )}
 
       {/* How It Works */}

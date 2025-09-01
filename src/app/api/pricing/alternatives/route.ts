@@ -144,7 +144,12 @@ export async function POST(req: NextRequest) {
               const r = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } })
               if (r.ok) {
                 const dj = await r.json()
-                const prods = (dj?.data || []).filter((p: any)=> hasPrice(p)).map((p: any) => ({ ...p, _storeId: store.locationId, _storeName: store.name }))
+                const addr = store?.address?.addressLine1 || store?.address?.addressLine || store?.address?.line1 || undefined
+                const city = store?.address?.city || store?.address?.locality || undefined
+                const state = store?.address?.state || store?.address?.region || undefined
+                const zipc = store?.address?.zipCode || store?.address?.postalCode || undefined
+                const composedAddr = [addr, city, state].filter(Boolean).join(', ') + (zipc ? ` ${zipc}` : '')
+                const prods = (dj?.data || []).filter((p: any)=> hasPrice(p)).map((p: any) => ({ ...p, _storeId: store.locationId, _storeName: store.name, _storeAddress: composedAddr || undefined }))
                 priced.push(...prods)
               }
               if (priced.length >= limit) break
@@ -163,6 +168,7 @@ export async function POST(req: NextRequest) {
                 confidence: Math.max(0, Math.min(1, x.d.score)),
                 storeId: x.p?._storeId,
                 storeName: x.p?._storeName,
+                storeAddress: x.p?._storeAddress,
                 priced: true,
                 signals: { titleSim: x.d.titleSim, sizeProximity: x.d.sizeProximity, categoryMatched: x.d.categoryMatched },
               }))

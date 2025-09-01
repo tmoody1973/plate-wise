@@ -15,6 +15,7 @@ export interface UserProfile {
     dietaryRestrictions: string[];
     allergies: string[];
     dislikes: string[];
+    preferFreshProduce?: boolean;
   };
   budget: {
     monthlyLimit: number;
@@ -60,6 +61,8 @@ export interface Recipe {
     totalTime: number;
     difficulty: 'easy' | 'medium' | 'hard';
     culturalAuthenticity: number; // 1-10 scale
+    imageUrl?: string; // optional image proxy URL or direct
+    sourceUrl?: string; // original source link when imported
   };
   tags: string[];
   source: 'user' | 'spoonacular' | 'community';
@@ -80,6 +83,9 @@ export interface Ingredient {
   costPerUnit: number;
   availability: StoreAvailability[];
   culturalSignificance?: string;
+  notes?: string;
+  weightGrams?: number;
+  wholeEquivalent?: string;
 }
 
 export interface Instruction {
@@ -388,15 +394,37 @@ export interface MealPlanPreferences {
 }
 
 // Cultural theme types
+export type ThemeMode = 'light' | 'dark' | 'system';
+
+export interface ThemeColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+  gradient: string[];
+  // Background colors
+  background: string;
+  surface: string;
+  card: string;
+  // Text colors
+  foreground: string;
+  muted: string;
+  // Border and divider colors
+  border: string;
+  ring: string;
+  // Status colors
+  success: string;
+  warning: string;
+  error: string;
+  info: string;
+}
+
 export interface CulturalTheme {
   id: string;
   name: string;
   displayName: string;
   colors: {
-    primary: string;
-    secondary: string;
-    accent: string;
-    gradient: string[];
+    light: ThemeColors;
+    dark: ThemeColors;
   };
   patterns: {
     background: string;
@@ -413,9 +441,21 @@ export interface CulturalTheme {
   };
 }
 
+export interface ThemePreferences {
+  culturalTheme: string;
+  mode: ThemeMode;
+  highContrast: boolean;
+  reducedMotion: boolean;
+}
+
 export interface ThemeContextType {
   currentTheme: CulturalTheme;
+  currentMode: ThemeMode;
+  resolvedMode: 'light' | 'dark'; // The actual mode being used (system resolved)
+  preferences: ThemePreferences;
   availableThemes: CulturalTheme[];
   setTheme: (themeId: string) => void;
+  setMode: (mode: ThemeMode) => void;
+  setPreferences: (preferences: Partial<ThemePreferences>) => void;
   isLoading: boolean;
 }

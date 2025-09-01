@@ -5,6 +5,7 @@ module.exports = {
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  darkMode: 'class', // Enable class-based dark mode
   theme: {
     extend: {
       colors: {
@@ -21,7 +22,22 @@ module.exports = {
           800: '#9a3412',
           900: '#7c2d12',
         },
-        // Cultural theme colors
+        // Cultural theme colors with CSS custom properties
+        'cultural-primary': 'var(--cultural-primary)',
+        'cultural-secondary': 'var(--cultural-secondary)',
+        'cultural-accent': 'var(--cultural-accent)',
+        'cultural-background': 'var(--cultural-background)',
+        'cultural-surface': 'var(--cultural-surface)',
+        'cultural-card': 'var(--cultural-card)',
+        'cultural-foreground': 'var(--cultural-foreground)',
+        'cultural-muted': 'var(--cultural-muted)',
+        'cultural-border': 'var(--cultural-border)',
+        'cultural-ring': 'var(--cultural-ring)',
+        'cultural-success': 'var(--cultural-success)',
+        'cultural-warning': 'var(--cultural-warning)',
+        'cultural-error': 'var(--cultural-error)',
+        'cultural-info': 'var(--cultural-info)',
+        // Legacy cultural theme colors for backward compatibility
         mediterranean: {
           primary: '#E67E22',
           secondary: '#27AE60',
