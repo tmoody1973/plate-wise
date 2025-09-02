@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { normalizeUnit, parsePackSize, estimateIngredientCost, convert } from '@/utils/units'
 import { estimateIngredientCost as heuristicCost } from '@/lib/recipes/cost-estimator'
 import { googlePlacesService } from '@/lib/external-apis/google-places-service'
+import { ingredientQuantityNormalizer } from '@/lib/recipes/ingredient-quantity-normalizer'
 
 type PricingCompare = Record<string, Array<{ store: string; price: number | string; tags?: string[] }>>
 type StoreOption = {
@@ -338,15 +339,66 @@ function convertNeededToUnit(neededQty: number, neededUnit: string | undefined, 
 }
 
 function computePortionCost(opt: PricingData, neededQty: number, neededUnit?: string, ingredientName?: string): number {
-  // If the model supplied portionCost, keep it (after normalization)
-  const pc = normalizePrice(opt.portionCost)
-  if (pc !== undefined) return pc
+  // First check if Perplexity AI already provided an accurate portionCost
+  const aiPortionCost = normalizePrice(opt.portionCost)
+  const packagePrice = opt.packagePrice || 0
+  
+  // Only trust AI portion cost if it's reasonable (not equal to package price for non-whole items)
+  if (aiPortionCost !== undefined && aiPortionCost > 0 && aiPortionCost <= packagePrice) {
+    // For whole items (chicken, etc), portion cost can equal package price
+    const isWholeItem = ingredientName && (
+      ingredientName.toLowerCase().includes('whole') || 
+      ingredientName.toLowerCase().includes('chicken') ||
+      ingredientName.toLowerCase().includes('turkey') ||
+      ingredientName.toLowerCase().includes('fish') ||
+      // Only consider as whole if explicitly uses whole-related units AND ingredient name suggests it's actually whole
+      ((neededUnit === 'whole' || (neededUnit === 'each' && ingredientName.toLowerCase().match(/\b(onion|garlic|egg|lemon|lime|potato)\b/))) && neededQty <= 1)
+    )
+    
+    // If it's a whole item or portion cost is significantly less than package price, trust AI
+    if (isWholeItem || aiPortionCost < packagePrice * 0.9) {
+      console.log(`✅ Using AI portion cost for ${ingredientName}: $${aiPortionCost} (${Math.round(aiPortionCost/packagePrice*100)}% of package)`)
+      return aiPortionCost
+    } else {
+      console.log(`⚠️ AI portion cost suspicious for ${ingredientName}: $${aiPortionCost} equals ${Math.round(aiPortionCost/packagePrice*100)}% of package price - recalculating`)
+    }
+  }
+
+  // Use our new accurate calculation system
+  if (ingredientName && opt.packageSize && opt.packagePrice) {
+    try {
+      const recipeIngredient = {
+        name: ingredientName,
+        amount: neededQty,
+        unit: neededUnit || ''
+      }
+      
+      const packageInfo = {
+        productName: opt.productName || ingredientName,
+        packageSize: opt.packageSize,
+        packagePrice: opt.packagePrice,
+        storeName: opt.storeName || 'Unknown Store'
+      }
+
+      const result = ingredientQuantityNormalizer.calculateIngredientPortion(recipeIngredient, packageInfo)
+      
+      if (result.confidence !== 'low' && result.portionCost > 0) {
+        console.log(`🧮 Accurate portion calculation: ${ingredientName} = $${result.portionCost} (${Math.round(result.utilizationRatio * 100)}% of package)`)
+        return result.portionCost
+      }
+    } catch (error) {
+      console.warn(`⚠️ Portion calculation failed for ${ingredientName}:`, error)
+    }
+  }
+
+  // Fallback to existing logic for compatibility
   // Try unit price label first
   const parsed = parseUnitPriceLabel(opt.unitPrice)
   if (parsed) {
     const q = convertNeededToUnit(neededQty, neededUnit, parsed.unit, ingredientName)
     if (q != null) return parsed.price * q
   }
+  
   // Try pack info to derive a unit price
   const pack = parsePackSize(opt.packageSize)
   if (pack && typeof opt.packagePrice === 'number' && opt.packagePrice > 0) {
@@ -357,7 +409,9 @@ function computePortionCost(opt: PricingData, neededQty: number, neededUnit?: st
     const packG = convert(pack.qty, pack.unit, 'g')
     if (isFinite(neededG) && isFinite(packG) && packG > 0) {
       const unitPricePerG = opt.packagePrice / packG
-      return unitPricePerG * neededG
+      const calculatedCost = unitPricePerG * neededG
+      console.log(`📊 Fallback portion calculation: ${ingredientName} = $${calculatedCost.toFixed(2)}`)
+      return calculatedCost
     }
     if (pack.unit === 'each') {
       // Per-each logic
@@ -366,7 +420,13 @@ function computePortionCost(opt: PricingData, neededQty: number, neededUnit?: st
       return perPiece * pieces
     }
   }
-  return 0
+  
+  // Final fallback - use 25% of package price instead of returning 0
+  const fallbackCost = (opt.packagePrice || 0) * 0.25
+  if (fallbackCost > 0) {
+    console.log(`⚠️ Using fallback 25% estimate for ${ingredientName}: $${fallbackCost.toFixed(2)}`)
+  }
+  return fallbackCost
 }
 
 // Post-filtering to prefer mainstream chains
@@ -772,14 +832,14 @@ async function findGlobalMarkets(
       
       console.log(`📍 Found ${globalMarkets.length} global markets via Google Places`)
     } catch (error) {
-      console.warn('Google Places search failed, using defaults:', error)
-      return defaultMilwaukeeMarkets
+      console.warn('Google Places search failed:', error)
+      return []
     }
   }
   
-  // If no markets found or no API key, use defaults for Milwaukee
-  if (globalMarkets.length === 0 && city.toLowerCase().includes('milwaukee')) {
-    return defaultMilwaukeeMarkets
+  // If no markets found, return empty array (Google Places integration handles this)
+  if (globalMarkets.length === 0) {
+    console.log('No global markets found via Google Places')
   }
   
   return globalMarkets
@@ -797,31 +857,14 @@ async function getVerifiedStoreAddress(
   
   const state = getStateFromLocation(location, city)
   
-  // First check if we have a known address for Milwaukee stores
-  if (state === 'WI' && city.toLowerCase().includes('milwaukee')) {
-    // Check for exact match in known addresses
-    const knownAddress = MILWAUKEE_STORE_ADDRESSES[storeName]
-    if (knownAddress) {
-      console.log(`✅ Using verified address for ${storeName}: ${knownAddress}`)
-      return { address: knownAddress, verified: true }
-    }
-    
-    // Check for partial matches (e.g., "Pick 'n Save" vs "Pick n Save")
-    const normalizedStoreName = storeName.toLowerCase().replace(/['\s]/g, '')
-    for (const [knownStore, address] of Object.entries(MILWAUKEE_STORE_ADDRESSES)) {
-      const normalizedKnown = knownStore.toLowerCase().replace(/['\s]/g, '')
-      if (normalizedKnown === normalizedStoreName) {
-        console.log(`✅ Using verified address for ${storeName} (matched as ${knownStore}): ${address}`)
-        return { address, verified: true }
-      }
-    }
-  }
+  // Skip hardcoded address lookups - use Google Places for all locations
   
   // Try to use Google Places API if available
   if (process.env.GOOGLE_PLACES_API_KEY) {
     try {
-      // Search for the store in the specified city
-      const searchQuery = `${storeName} ${city}`
+      // Search for the store in the specified location, fallback to city if location is empty
+      const searchLocation = location || city || 'Atlanta, GA'
+      const searchQuery = `${storeName} ${searchLocation}`
       const stores = await googlePlacesService.searchStores(searchQuery)
       
       if (stores && stores.length > 0) {
@@ -1075,9 +1118,8 @@ export async function POST(request: NextRequest) {
             rawData: JSON.stringify(matchingPriceData, null, 2)
           })
           
-          // Use provided portionCost or compute if missing
-          const portionCost = normalizePrice(sanitized.portionCost) ?? 
-            computePortionCost(sanitized, ingAmount(ingredient) ?? 1, ingUnit(ingredient) ?? 'each', ingName(ingredient))
+          // Always validate portion cost using our calculation logic
+          const portionCost = computePortionCost(sanitized, ingAmount(ingredient) ?? 1, ingUnit(ingredient) ?? 'each', ingName(ingredient))
           
           // Get multiple store options for global ingredients
           let storeOptions: StoreOption[] = []

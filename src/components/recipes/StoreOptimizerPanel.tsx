@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import { Store, MapPin, Clock, TrendingUp, Zap, DollarSign, CheckCircle2, AlertCircle } from 'lucide-react'
 import type { OptimizedShoppingPlan, StoreAssignment } from '@/lib/pricing/shopping-optimizer'
+import { StoreSelector } from './StoreSelector'
+import { useUserLocation } from '@/hooks/useUserLocation'
 
 interface StoreOptimizerPanelProps {
   ingredients: Array<{name: string, amount: number, unit: string}>
@@ -19,14 +21,7 @@ interface OptimizationStrategy {
   efficiency: number
 }
 
-const MILWAUKEE_STORES = [
-  "Pick 'n Save",
-  "Metro Market",
-  "Asian International Market", 
-  "Aldi",
-  "Walmart",
-  "Woodman's Market"
-]
+// Stores will be dynamically loaded based on user location
 
 export function StoreOptimizerPanel({
   ingredients = [],
@@ -34,11 +29,12 @@ export function StoreOptimizerPanel({
   onPlanGenerated,
   className = ''
 }: StoreOptimizerPanelProps) {
-  const [selectedStore, setSelectedStore] = useState<string>("Pick 'n Save")
+  const [selectedStore, setSelectedStore] = useState<string>('')
   const [optimizationPlan, setOptimizationPlan] = useState<OptimizedShoppingPlan | null>(null)
   const [strategies, setStrategies] = useState<OptimizationStrategy[]>([])
   const [isOptimizing, setIsOptimizing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { location: userLocation } = useUserLocation()
 
   // Safety check for ingredients
   const safeIngredients = Array.isArray(ingredients) ? ingredients : []
@@ -77,7 +73,8 @@ export function StoreOptimizerPanel({
         body: JSON.stringify({
           ingredients: safeIngredients,
           preferredStore: selectedStore,
-          location: '53206', // TODO: Get from user profile
+          location: userLocation.zipCode, // Using user's actual location
+          city: userLocation.city,
           existingPricingData
         })
       })
@@ -150,20 +147,11 @@ export function StoreOptimizerPanel({
         </h3>
         
         <div className="grid md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Preferred Primary Store
-            </label>
-            <select
-              value={selectedStore}
-              onChange={(e) => setSelectedStore(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {MILWAUKEE_STORES.map(store => (
-                <option key={store} value={store}>{store}</option>
-              ))}
-            </select>
-          </div>
+          <StoreSelector
+            value={selectedStore}
+            onChange={setSelectedStore}
+            label="Preferred Primary Store"
+          />
           
           <div className="flex items-end">
             <button

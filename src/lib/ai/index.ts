@@ -3,7 +3,7 @@
  * Provides a single entry point for all AI-powered features in PlateWise
  */
 
-import { BedrockService, bedrockService } from './bedrock-service';
+// import { BedrockService, bedrockService } from './bedrock-service'; // DISABLED
 import { getAIConfig, validateAIConfig } from './config';
 import type {
   MealPlanRequest,

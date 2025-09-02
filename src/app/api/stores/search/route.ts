@@ -6,16 +6,18 @@ export async function POST(request: NextRequest) {
     
     const {
       ingredient,
-      location = '53206',
-      city = 'Milwaukee, WI',
-      culturalContext = 'general'
+      location = '30309',
+      city = 'Atlanta, GA',
+      culturalContext = 'general',
+      skipValidation = false  // New parameter to skip address validation for faster responses
     } = body
 
     console.log(`🏪 Store search request:`, {
       ingredient,
       location,
       city,
-      culturalContext
+      culturalContext,
+      skipValidation
     })
 
     if (!ingredient || typeof ingredient !== 'string') {
@@ -42,21 +44,21 @@ export async function POST(request: NextRequest) {
     })
 
     // Build search prompt specifically for finding multiple stores
-    const searchPrompt = `Find ${ingredient} at MULTIPLE different grocery stores in Milwaukee, Wisconsin (${location}). 
+    const searchPrompt = `Find ${ingredient} at MULTIPLE different grocery stores in ${city} (${location}). 
 
 IMPORTANT: Return data for AT LEAST 5 different stores, including both mainstream chains and ethnic markets. For each store, provide current pricing, package sizes, and exact store addresses.
 
 Required stores to check (find at least these plus more):
-- Pick 'n Save
-- Metro Market  
+- Kroger
+- Publix
 - Walmart
 - Target
-- Woodman's
+- Whole Foods
 - Asian International Market
-- El Rey
-- Cermak Fresh Market
+- Buford Highway Farmers Market
+- H Mart
 - Aldi
-- Fresh Thyme
+- Fresh Market
 
 Return ONLY a JSON array with this exact format:
 [
@@ -69,12 +71,12 @@ Return ONLY a JSON array with this exact format:
     "unitPrice": "$2.50/lb",
     "portionCost": 1.25,
     "storeType": "mainstream",
-    "storeAddress": "3801 W Wisconsin Ave, Milwaukee, WI 53208",
+    "storeAddress": "2300 Piedmont Rd NE, Atlanta, GA 30324",
     "sourceUrl": null
   }
 ]
 
-Focus on providing diverse store options with realistic Milwaukee pricing.`
+Focus on providing diverse store options with realistic pricing for ${city}.`
 
     console.log(`📝 Store search prompt:`, searchPrompt.substring(0, 300) + '...')
 
@@ -90,7 +92,7 @@ Focus on providing diverse store options with realistic Milwaukee pricing.`
         messages: [
           {
             role: 'system',
-            content: 'You are a Milwaukee grocery store expert. Always return ONLY valid JSON in the exact format requested. Include multiple store options with verified Milwaukee addresses and realistic pricing. Do not include explanatory text.'
+            content: 'You are a grocery store expert. Always return ONLY valid JSON in the exact format requested. Include multiple store options with verified addresses and realistic pricing. Do not include explanatory text.'
           },
           {
             role: 'user',
@@ -140,18 +142,18 @@ Focus on providing diverse store options with realistic Milwaukee pricing.`
       console.error('❌ Error parsing store search response:', parseError)
       console.log('📝 Raw response:', searchResults.substring(0, 500) + '...')
       
-      // Fallback: create diverse Milwaukee store options
+      // Fallback: create diverse store options
       storeOptions = [
         {
           ingredient,
-          storeName: "Pick 'n Save",
+          storeName: "Kroger",
           productName: `${ingredient} - Store Brand`,
           packageSize: "1 lb",
           packagePrice: 3.99,
           unitPrice: "$3.99/lb",
           portionCost: 1.50,
           storeType: "mainstream",
-          storeAddress: "3801 W Wisconsin Ave, Milwaukee, WI 53208"
+          storeAddress: "2300 Piedmont Rd NE, Atlanta, GA 30324"
         },
         {
           ingredient,
@@ -162,7 +164,7 @@ Focus on providing diverse store options with realistic Milwaukee pricing.`
           unitPrice: "$2.69/lb",
           portionCost: 1.25,
           storeType: "ethnic",
-          storeAddress: "3401 W National Ave, Milwaukee, WI 53215"
+          storeAddress: "4651 Buford Hwy, Chamblee, GA 30341"
         },
         {
           ingredient,
@@ -173,29 +175,29 @@ Focus on providing diverse store options with realistic Milwaukee pricing.`
           unitPrice: "$2.89/lb",
           portionCost: 1.35,
           storeType: "mainstream",
-          storeAddress: "4140 W Greenfield Ave, Milwaukee, WI 53215"
+          storeAddress: "2500 Mt Zion Pkwy, Jonesboro, GA 30236"
         },
         {
           ingredient,
-          storeName: "Metro Market",
+          storeName: "Publix",
           productName: `${ingredient} - Premium`,
           packageSize: "1 lb",
           packagePrice: 4.99,
           unitPrice: "$4.99/lb",
           portionCost: 1.85,
           storeType: "mainstream",
-          storeAddress: "1123 N Van Buren St, Milwaukee, WI 53202"
+          storeAddress: "1500 Piedmont Ave NE, Atlanta, GA 30324"
         },
         {
           ingredient,
-          storeName: "El Rey",
-          productName: `${ingredient} - Mexican Brand`,
+          storeName: "Buford Highway Farmers Market",
+          productName: `${ingredient} - International Brand`,
           packageSize: "750g",
           packagePrice: 3.25,
           unitPrice: "$1.97/lb",
           portionCost: 1.10,
           storeType: "ethnic",
-          storeAddress: "916 S Cesar E Chavez Dr, Milwaukee, WI 53204"
+          storeAddress: "5600 Buford Hwy NE, Doraville, GA 30340"
         }
       ]
       console.log(`🔄 Using fallback store options: ${storeOptions.length} stores`)
@@ -216,9 +218,9 @@ Focus on providing diverse store options with realistic Milwaukee pricing.`
       verification: 'unverified' as const
     }))
 
-    // Try to validate addresses with Google Places API (if available)
+    // Try to validate addresses with Google Places API (if available and not skipped)
     const googleApiKey = process.env.GOOGLE_PLACES_API_KEY
-    if (googleApiKey) {
+    if (googleApiKey && !skipValidation) {
       try {
         console.log(`🔍 Validating ${validatedOptions.length} store addresses with Google Places`)
         
@@ -262,8 +264,10 @@ Focus on providing diverse store options with realistic Milwaukee pricing.`
       } catch (validationError) {
         console.warn('⚠️ Address validation failed, using original addresses:', validationError)
       }
-    } else {
+    } else if (!googleApiKey) {
       console.log('ℹ️ Google Places API not configured, skipping address validation')
+    } else {
+      console.log('⚡ Skipping address validation for faster response')
     }
 
     console.log(`✅ Returning ${validatedOptions.length} store options (${validatedOptions.filter(opt => opt.verification === 'verified').length} verified addresses)`)
@@ -294,8 +298,8 @@ Focus on providing diverse store options with realistic Milwaukee pricing.`
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const ingredient = searchParams.get('ingredient')
-  const location = searchParams.get('location') || '53206'
-  const city = searchParams.get('city') || 'Milwaukee, WI'
+  const location = searchParams.get('location') || '30309'
+  const city = searchParams.get('city') || 'Atlanta, GA'
   
   if (!ingredient) {
     return NextResponse.json({

@@ -6,7 +6,7 @@
 
 import { enhancedPricingService } from './enhanced-pricing-service';
 import { googlePlacesService } from './google-places-service';
-import { bedrockService } from '@/lib/ai/bedrock-service';
+// import { bedrockService } from '@/lib/ai/bedrock-service'; // DISABLED
 import type { Ingredient, UserProfile } from '@/types';
 
 export interface CulturalIngredientContext {
@@ -221,7 +221,9 @@ Consider:
 - Where is it typically purchased (specialty stores vs mainstream)?
 `;
 
-      const response = await bedrockService.generateText(prompt);
+      // Bedrock AI disabled - using fallback cultural context
+      console.log('Using fallback cultural analysis (Bedrock AI disabled)');
+      const response = this.getFallbackCulturalContext(ingredient, culturalOrigins);
       
       try {
         const parsed = JSON.parse(response);
@@ -582,7 +584,9 @@ Consider:
 - Bulk options are common for staple ingredients
 `;
 
-      const response = await bedrockService.generateText(prompt);
+      // Bedrock AI disabled - using fallback cultural context
+      console.log('Using fallback cultural analysis (Bedrock AI disabled)');
+      const response = this.getFallbackCulturalContext(ingredient, culturalOrigins);
       const parsed = JSON.parse(response);
 
       return {
@@ -1006,6 +1010,33 @@ Consider:
       bestOption: fallbackOption,
       culturalNotes: ['Cultural pricing analysis unavailable']
     };
+  }
+
+  /**
+   * Fallback cultural context when AI is disabled
+   */
+  private getFallbackCulturalContext(ingredient: string, culturalOrigins: string[]): string {
+    const ingredient_lower = ingredient.toLowerCase();
+    
+    // Basic cultural ingredient knowledge
+    if (ingredient_lower.includes('soy sauce') || ingredient_lower.includes('miso') || ingredient_lower.includes('seaweed')) {
+      return `${ingredient} is a traditional Asian ingredient commonly found in Asian markets and specialty stores. Consider checking H Mart, 99 Ranch Market, or local Asian grocery stores for authentic varieties.`;
+    }
+    
+    if (ingredient_lower.includes('chorizo') || ingredient_lower.includes('masa') || ingredient_lower.includes('poblano')) {
+      return `${ingredient} is a traditional Mexican ingredient. Look for it in Latino markets, Mexican grocery stores, or the international aisle of mainstream supermarkets.`;
+    }
+    
+    if (ingredient_lower.includes('harissa') || ingredient_lower.includes('tahini') || ingredient_lower.includes('sumac')) {
+      return `${ingredient} is a Middle Eastern ingredient. Check Middle Eastern markets, Mediterranean stores, or specialty food sections.`;
+    }
+    
+    if (ingredient_lower.includes('curry') || ingredient_lower.includes('masala') || ingredient_lower.includes('cardamom')) {
+      return `${ingredient} is common in Indian/South Asian cuisine. Find it in Indian grocery stores, spice shops, or international food aisles.`;
+    }
+    
+    // Default response
+    return `${ingredient} can be found in most grocery stores. Check the international aisle or specialty food section for authentic varieties.`;
   }
 }
 

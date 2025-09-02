@@ -34,6 +34,7 @@ const StoreOptimizerPanel = dynamic(
   { ssr: false, loading: () => <div className="bg-gray-100 rounded-xl p-6 animate-pulse"><div className="h-4 bg-gray-300 rounded mb-2"></div><div className="h-4 bg-gray-300 rounded w-3/4"></div></div> }
 );
 import { useProfileSetup } from '@/hooks/useProfileSetup';
+import { useUserLocation } from '@/hooks/useUserLocation';
 import type { Recipe } from '@/types';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { recipeService } from '@/lib/recipes';
@@ -89,6 +90,7 @@ export default function RecipeDetailPage() {
   const { user } = useAuthContext();
   const { addToast } = useToast();
   const { profile } = useProfileSetup();
+  const { location: userLocation } = useUserLocation();
   const [refreshingPrices, setRefreshingPrices] = useState(false);
   const [zipInput, setZipInput] = useState<string>('');
   const [stores, setStores] = useState<Array<{ id: string; name: string }>>([]);
@@ -171,7 +173,7 @@ export default function RecipeDetailPage() {
       setSearchLoading(true)
       const baseName = recipe?.ingredients[idx]?.name || ''
       const payload: any = { name: baseName, query: searchQuery || baseName, limit: 12, offset: append ? searchOffset : 0, pricedOnly };
-      if (selectedStore.id) payload.locationId = selectedStore.id; else if (zipInput || profile?.location?.zipCode) payload.zip = (zipInput || profile?.location?.zipCode);
+      if (selectedStore.id) payload.locationId = selectedStore.id; else if (zipInput || userLocation.zipCode) payload.zip = (zipInput || userLocation.zipCode);
       const resp = await fetch('/api/pricing/alternatives', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (resp.ok) {
         const json = await resp.json();
@@ -288,7 +290,7 @@ export default function RecipeDetailPage() {
       const extras = Array.isArray(extraPreferred) ? extraPreferred : [];
       const payload = {
         ingredients: recipe.ingredients.map(i => ({ name: i.name, amount: i.amount, unit: i.unit })),
-        zip: selectedStore.id ? undefined : (zipInput || profile?.location?.zipCode),
+        zip: selectedStore.id ? undefined : (zipInput || userLocation.zipCode),
         locationId: selectedStore.id,
         servings: recipe.metadata.servings,
         preferredProductIds: [
@@ -300,7 +302,7 @@ export default function RecipeDetailPage() {
       // Try Perplexity first for more accurate pricing
       console.log('📡 Calling Perplexity API...', {
         ingredients: recipe.ingredients.map(i => i.name),
-        location: zipInput || profile?.location?.zipCode || '90210',
+        location: zipInput || userLocation.zipCode,
         culturalContext: recipe.culturalOrigin || 'general'
       });
       
@@ -309,8 +311,8 @@ export default function RecipeDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ingredients: recipe.ingredients,
-          location: zipInput || profile?.location?.zipCode || '90210',
-          city: profile?.location?.city || '',
+          location: zipInput || userLocation.zipCode,
+          city: userLocation.city,
           culturalContext: recipe.culturalOrigin || 'general',
           defaultStoreName: pricingAnchor === 'store' ? (selectedStore.name || (profile as any)?.preferences?.defaultStore?.name || '') : ''
         }),
@@ -516,7 +518,7 @@ export default function RecipeDetailPage() {
           unit: ingredient.unit,
           amount: ingredient.amount
         }],
-        location: zipInput || profile?.location?.zipCode || '90210',
+        location: zipInput || userLocation.zipCode,
         culturalContext: recipe.culturalOrigin || 'general'
       };
       
@@ -637,7 +639,7 @@ export default function RecipeDetailPage() {
         console.log('[pricing] Trying Perplexity for enhanced ingredient search...');
         const perplexityPayload = {
           ingredients: [ingredient.name],
-          location: zipInput || profile?.location?.zipCode || '90210',
+          location: zipInput || userLocation.zipCode,
           culturalContext: recipe.culturalOrigin || 'general'
         };
         
@@ -646,7 +648,7 @@ export default function RecipeDetailPage() {
           headers: { 'Content-Type': 'application/json' }, 
           body: JSON.stringify({
             ...perplexityPayload,
-            city: profile?.location?.city || '',
+            city: userLocation.city,
             defaultStoreName: pricingAnchor === 'store' ? (selectedStore.name || (profile as any)?.preferences?.defaultStore?.name || '') : ''
           })
         });
@@ -683,7 +685,7 @@ export default function RecipeDetailPage() {
       // Standard alternatives search
       const payload: any = { name: ingredient.name, limit: 12, pricedOnly };
       if (selectedStore.id) payload.locationId = selectedStore.id; 
-      else if (zipInput || profile?.location?.zipCode) payload.zip = (zipInput || profile?.location?.zipCode);
+      else if (zipInput || userLocation.zipCode) payload.zip = (zipInput || userLocation.zipCode);
       
       const resp = await fetch('/api/pricing/alternatives', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (resp.ok) {
@@ -724,7 +726,7 @@ export default function RecipeDetailPage() {
   const fetchStores = async () => {
     try {
       setFindingStores(true)
-      const zip = (zipInput || profile?.location?.zipCode || '').trim();
+      const zip = (zipInput || userLocation.zipCode || '').trim();
       if (!zip) {
         alert('Enter a ZIP code to find nearby stores');
         return;
@@ -744,12 +746,12 @@ export default function RecipeDetailPage() {
   };
 
   useEffect(() => {
-    setZipInput(profile?.location?.zipCode || '');
+    setZipInput(userLocation.zipCode || '');
     const def = (profile as any)?.preferences?.defaultStore;
     if (def?.id) {
       setSelectedStore({ id: def.id, name: def.name });
     }
-  }, [profile?.location?.zipCode]);
+  }, [userLocation.zipCode, profile]);
 
   const saveDefaultStore = async () => {
     try {
@@ -757,7 +759,7 @@ export default function RecipeDetailPage() {
       const updates: any = {
         preferences: {
           ...(profile as any)?.preferences,
-          defaultStore: { id: selectedStore.id, name: selectedStore.name, zip: zipInput || profile?.location?.zipCode },
+          defaultStore: { id: selectedStore.id, name: selectedStore.name, zip: zipInput || userLocation.zipCode },
         },
       };
       const { profileService } = await import('@/lib/profile/profile-service');
@@ -1044,8 +1046,8 @@ export default function RecipeDetailPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   ingredient,
-                  location: zipInput || profile?.location?.zipCode || '53206',
-                  city: profile?.location?.city || 'Milwaukee, WI',
+                  location: zipInput || userLocation.zipCode,
+                  city: userLocation.city + ', ' + userLocation.state,
                   culturalContext: recipe.culturalOrigin || 'general'
                 })
               });
@@ -1075,7 +1077,7 @@ export default function RecipeDetailPage() {
             <h2 className="text-2xl font-bold text-green-900">Get Recipe Pricing</h2>
           </div>
           <p className="text-green-700 mb-6 max-w-md mx-auto">
-            See exact costs from Milwaukee stores and get a smart shopping plan organized by location.
+            See exact costs from local stores in {userLocation.city} and get a smart shopping plan organized by location.
           </p>
           <button
             onClick={() => refreshLivePrices()}
@@ -1095,7 +1097,7 @@ export default function RecipeDetailPage() {
             )}
           </button>
           <div className="mt-4 text-sm text-green-600">
-            ✓ Real Milwaukee store prices ✓ Smart shopping routes ✓ Mobile-friendly
+            ✓ Real local store prices ✓ Smart shopping routes ✓ Mobile-friendly
           </div>
         </div>
       )}
@@ -1559,8 +1561,8 @@ export default function RecipeDetailPage() {
               {activeTab === 'cultural-pricing' && profile && (
                 <SimplePricingPanel
                   ingredients={recipe.ingredients}
-                  zipCode={zipInput || profile?.location?.zipCode || '53206'}
-                  city={profile?.location?.city || 'Milwaukee'}
+                  zipCode={zipInput || userLocation.zipCode}
+                  city={userLocation.city}
                   culturalContext={recipe.culturalOrigin.join(', ') || 'general'}
                 />
               )}

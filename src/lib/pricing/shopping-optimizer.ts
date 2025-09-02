@@ -41,49 +41,135 @@ export interface IngredientAvailability {
   }>
 }
 
-// Milwaukee store database with specialties
-const MILWAUKEE_STORES: Record<string, StoreInfo> = {
-  "Pick 'n Save": {
-    name: "Pick 'n Save",
+import { fallbackGeocodingService } from '@/lib/external-apis/fallback-geocoding'
+
+// Dynamic store database builder
+function buildStoreDatabase(cityName: string): Record<string, StoreInfo> {
+  const locationData = fallbackGeocodingService.getCityData(cityName)
+  
+  if (!locationData) {
+    // Default to Atlanta stores if location not found
+    return buildAtlantaStores()
+  }
+  
+  const stores: Record<string, StoreInfo> = {}
+  
+  // Build dynamic store info based on common stores for the city
+  locationData.commonStores.forEach((storeName, index) => {
+    const storeType = getStoreType(storeName)
+    stores[storeName] = {
+      name: storeName,
+      type: storeType.type,
+      address: `${storeName} - ${locationData.city}, ${locationData.state} ${locationData.zipCode}`,
+      estimatedShoppingTime: storeType.estimatedTime,
+      specialties: storeType.specialties
+    }
+  })
+  
+  return stores
+}
+
+// Helper to determine store type and characteristics
+function getStoreType(storeName: string): {
+  type: 'mainstream' | 'ethnic' | 'specialty',
+  estimatedTime: number,
+  specialties: string[]
+} {
+  const name = storeName.toLowerCase()
+  
+  if (name.includes('asian') || name.includes('international') || name.includes('ethnic')) {
+    return {
+      type: 'ethnic',
+      estimatedTime: 15,
+      specialties: ['asian', 'dashi', 'miso', 'specialty-sauces', 'noodles', 'international']
+    }
+  }
+  
+  if (name.includes('whole foods') || name.includes('trader joe')) {
+    return {
+      type: 'specialty',
+      estimatedTime: 20,
+      specialties: ['organic', 'premium', 'prepared', 'health']
+    }
+  }
+  
+  if (name.includes('aldi')) {
+    return {
+      type: 'mainstream',
+      estimatedTime: 18,
+      specialties: ['budget', 'pantry', 'basic']
+    }
+  }
+  
+  if (name.includes('walmart')) {
+    return {
+      type: 'mainstream',
+      estimatedTime: 35,
+      specialties: ['bulk', 'pantry', 'general', 'budget']
+    }
+  }
+  
+  if (name.includes('kroger') || name.includes('publix')) {
+    return {
+      type: 'mainstream',
+      estimatedTime: 25,
+      specialties: ['general', 'pantry', 'fresh', 'dairy']
+    }
+  }
+  
+  // Default mainstream store
+  return {
     type: 'mainstream',
-    address: '3801 W Wisconsin Ave, Milwaukee, WI 53208',
-    estimatedShoppingTime: 25,
+    estimatedTime: 25,
     specialties: ['general', 'pantry', 'fresh', 'dairy']
-  },
-  "Metro Market": {
-    name: "Metro Market",
-    type: 'mainstream', 
-    address: '1123 N Van Buren St, Milwaukee, WI 53202',
-    estimatedShoppingTime: 20,
-    specialties: ['premium', 'organic', 'fresh', 'prepared']
-  },
-  "Asian International Market": {
-    name: "Asian International Market",
-    type: 'ethnic',
-    address: '3401 W National Ave, Milwaukee, WI 53215',
-    estimatedShoppingTime: 15,
-    specialties: ['asian', 'dashi', 'miso', 'specialty-sauces', 'noodles']
-  },
-  "Aldi": {
-    name: "Aldi",
-    type: 'mainstream',
-    address: '2100 N Dr Martin Luther King Jr Dr, Milwaukee, WI 53212',
-    estimatedShoppingTime: 18,
-    specialties: ['budget', 'pantry', 'basic']
-  },
-  "Walmart": {
-    name: "Walmart",
-    type: 'mainstream',
-    address: '3929 S 27th St, Milwaukee, WI 53221',
-    estimatedShoppingTime: 35,
-    specialties: ['bulk', 'pantry', 'general', 'budget']
-  },
-  "Woodman's Market": {
-    name: "Woodman's Market", 
-    type: 'mainstream',
-    address: 'W124N8145 WI-145, Menomonee Falls, WI 53051',
-    estimatedShoppingTime: 30,
-    specialties: ['bulk', 'variety', 'pantry', 'organic']
+  }
+}
+
+// Fallback Atlanta stores for when location data is unavailable
+function buildAtlantaStores(): Record<string, StoreInfo> {
+  return {
+    "Kroger": {
+      name: "Kroger",
+      type: 'mainstream',
+      address: 'Kroger - Atlanta, GA 30309',
+      estimatedShoppingTime: 25,
+      specialties: ['general', 'pantry', 'fresh', 'dairy']
+    },
+    "Publix": {
+      name: "Publix",
+      type: 'mainstream',
+      address: 'Publix - Atlanta, GA 30309',
+      estimatedShoppingTime: 22,
+      specialties: ['fresh', 'prepared', 'premium', 'pharmacy']
+    },
+    "Whole Foods Market": {
+      name: "Whole Foods Market",
+      type: 'specialty',
+      address: 'Whole Foods Market - Atlanta, GA 30309',
+      estimatedShoppingTime: 20,
+      specialties: ['organic', 'premium', 'prepared', 'health']
+    },
+    "Aldi": {
+      name: "Aldi",
+      type: 'mainstream',
+      address: 'Aldi - Atlanta, GA 30309',
+      estimatedShoppingTime: 18,
+      specialties: ['budget', 'pantry', 'basic']
+    },
+    "Walmart": {
+      name: "Walmart",
+      type: 'mainstream',
+      address: 'Walmart - Atlanta, GA 30309',
+      estimatedShoppingTime: 35,
+      specialties: ['bulk', 'pantry', 'general', 'budget']
+    },
+    "Target": {
+      name: "Target",
+      type: 'mainstream',
+      address: 'Target - Atlanta, GA 30309',
+      estimatedShoppingTime: 28,
+      specialties: ['general', 'pantry', 'fresh', 'household']
+    }
   }
 }
 
@@ -105,15 +191,18 @@ export class ShoppingOptimizer {
    */
   async optimizeForOneStore(
     ingredients: Array<{name: string, amount: number, unit: string}>,
-    preferredStoreName: string = "Pick 'n Save",
-    location: string = '53206',
+    preferredStoreName: string = "Kroger",
+    location: string = '30309',
     pricingData?: Array<any>
   ): Promise<OptimizedShoppingPlan> {
     
     console.log(`🎯 Starting one-store optimization for ${preferredStoreName}`)
     console.log(`📝 Ingredients to optimize:`, ingredients.map(i => i.name))
     
-    const primaryStore = MILWAUKEE_STORES[preferredStoreName] || MILWAUKEE_STORES["Pick 'n Save"]
+    // Get dynamic stores based on location
+    const cityName = this.getCityFromLocation(location)
+    const availableStores = buildStoreDatabase(cityName)
+    const primaryStore = availableStores[preferredStoreName] || Object.values(availableStores)[0]
     
     // If we already have pricing data, use it; otherwise return with warning
     let allPricingOptions: Array<any> = []
@@ -125,7 +214,7 @@ export class ShoppingOptimizer {
       console.log(`⚠️ No pricing data provided. Please get pricing data first via Perplexity API.`)
       // Return empty plan when no pricing data available
       return {
-        primaryStore: MILWAUKEE_STORES[preferredStoreName] || MILWAUKEE_STORES["Pick 'n Save"],
+        primaryStore,
         secondaryStores: [],
         ingredientDistribution: {},
         efficiency: 0,
@@ -139,7 +228,8 @@ export class ShoppingOptimizer {
     const storeAssignments = this.assignIngredientsToStores(
       ingredients,
       allPricingOptions,
-      preferredStoreName
+      preferredStoreName,
+      availableStores
     )
     
     // Calculate efficiency and costs
@@ -153,13 +243,13 @@ export class ShoppingOptimizer {
     const usedStores = [...new Set(Object.values(storeAssignments).map(a => a.assignedStore))]
     const secondaryStores = usedStores
       .filter(storeName => storeName !== preferredStoreName)
-      .map(storeName => MILWAUKEE_STORES[storeName])
+      .map(storeName => availableStores[storeName])
       .filter(Boolean)
     
     const totalCost = Object.values(storeAssignments)
       .reduce((sum, assignment) => sum + assignment.packagePrice, 0)
     
-    const estimatedTime = this.calculateShoppingTime(usedStores)
+    const estimatedTime = this.calculateShoppingTime(usedStores, availableStores)
     
     console.log(`✅ Optimization complete:`)
     console.log(`   Primary store: ${preferredStoreName} (${efficiency}% efficiency)`)
@@ -185,7 +275,8 @@ export class ShoppingOptimizer {
   private assignIngredientsToStores(
     ingredients: Array<{name: string, amount: number, unit: string}>,
     pricingOptions: Array<any>,
-    preferredStoreName: string
+    preferredStoreName: string,
+    availableStores: Record<string, StoreInfo>
   ): Record<string, StoreAssignment> {
     
     const assignments: Record<string, StoreAssignment> = {}
@@ -212,7 +303,7 @@ export class ShoppingOptimizer {
         
         if (isSpecialtyIngredient) {
           bestOption = ingredientOptions.find(option => 
-            MILWAUKEE_STORES[option.storeName]?.type === 'ethnic'
+            availableStores[option.storeName]?.type === 'ethnic'
           )
         }
         
@@ -229,7 +320,7 @@ export class ShoppingOptimizer {
           ingredient: ingredient.name,
           assignedStore: bestOption.storeName || 'Unknown Store',
           storeType: bestOption.storeType || 'mainstream',
-          storeAddress: this.getVerifiedAddress(bestOption.storeName) || bestOption.storeAddress || '',
+          storeAddress: this.getVerifiedAddress(bestOption.storeName, availableStores) || bestOption.storeAddress || '',
           packagePrice: bestOption.packagePrice || 0,
           portionCost: bestOption.portionCost || 0,
           productName: bestOption.productName || ingredient.name,
@@ -242,7 +333,7 @@ export class ShoppingOptimizer {
               ingredient: ingredient.name,
               assignedStore: alt.storeName || 'Unknown Store',
               storeType: alt.storeType || 'mainstream', 
-              storeAddress: this.getVerifiedAddress(alt.storeName) || alt.storeAddress || '',
+              storeAddress: this.getVerifiedAddress(alt.storeName, availableStores) || alt.storeAddress || '',
               packagePrice: alt.packagePrice || 0,
               portionCost: alt.portionCost || 0,
               productName: alt.productName || ingredient.name,
@@ -268,10 +359,10 @@ export class ShoppingOptimizer {
   }
   
   /**
-   * Get verified Milwaukee store addresses
+   * Get verified store addresses from dynamic store database
    */
-  private getVerifiedAddress(storeName: string): string | undefined {
-    return MILWAUKEE_STORES[storeName]?.address
+  private getVerifiedAddress(storeName: string, availableStores: Record<string, StoreInfo>): string | undefined {
+    return availableStores[storeName]?.address
   }
   
   /**
@@ -294,9 +385,9 @@ export class ShoppingOptimizer {
   /**
    * Calculate total estimated shopping time based on stores visited
    */
-  private calculateShoppingTime(storeNames: string[]): number {
+  private calculateShoppingTime(storeNames: string[], availableStores: Record<string, StoreInfo>): number {
     const baseTime = storeNames.reduce((total, storeName) => {
-      const store = MILWAUKEE_STORES[storeName]
+      const store = availableStores[storeName]
       return total + (store?.estimatedShoppingTime || 20)
     }, 0)
     
@@ -304,6 +395,28 @@ export class ShoppingOptimizer {
     const travelTime = Math.max(0, storeNames.length - 1) * 10
     
     return baseTime + travelTime
+  }
+  
+  /**
+   * Helper to get city name from location (zip code or city name)
+   */
+  private getCityFromLocation(location: string): string {
+    // If location is already a city name format, return it
+    if (location.includes(',') && location.includes(' ')) {
+      return location
+    }
+    
+    // Try to find city by zip code in fallback geocoding
+    // For now, we'll use a simple approach and default to Atlanta since
+    // the fallback service uses city names, not zip codes as keys
+    const cityData = fallbackGeocodingService.getCityData(location)
+    
+    if (cityData) {
+      return `${cityData.city}, ${cityData.state}`
+    }
+    
+    // Default to Atlanta if not found
+    return 'Atlanta, GA'
   }
   
   // Note: Pricing data should be passed in from the client-side

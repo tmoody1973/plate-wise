@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     
     const {
       stores,
-      city = 'Milwaukee, WI'
+      city = 'Atlanta, GA'
     } = body
 
     console.log(`🔍 Store validation request:`, {

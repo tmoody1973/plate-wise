@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Search, Loader2, X, RefreshCw, MapPin, DollarSign, Package, ExternalLink, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { useUserLocation } from '@/hooks/useUserLocation'
 
 interface IngredientSearchModalProps {
   isOpen: boolean
@@ -42,16 +43,18 @@ export function IngredientSearchModal({
   const [isSearching, setIsSearching] = useState(false)
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { location: userLocation, stores: userStores } = useUserLocation()
 
-  const MILWAUKEE_STORES = [
-    'Pick \'n Save',
-    'Metro Market', 
-    'Asian International Market',
-    'Aldi',
-    'Walmart',
-    'Woodman\'s Market',
+  // Use stores from user's location
+  const AVAILABLE_STORES = userStores || [
+    'Any Store',
+    'Kroger',
+    'Publix', 
     'Whole Foods',
-    'Target'
+    'Walmart',
+    'Target',
+    'Aldi',
+    'Trader Joe\'s'
   ]
 
   const handleSearch = async () => {
@@ -67,7 +70,7 @@ export function IngredientSearchModal({
         body: JSON.stringify({
           ingredient: customIngredient.trim(),
           store: targetStore || undefined,
-          location: '53206', // TODO: Get from user profile
+          location: userLocation.zipCode, // Using user's actual location
           searchType
         })
       })
@@ -306,7 +309,7 @@ export function IngredientSearchModal({
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Any Store</option>
-                  {MILWAUKEE_STORES.map(store => (
+                  {AVAILABLE_STORES.filter(store => store !== 'Any Store').map(store => (
                     <option key={store} value={store}>{store}</option>
                   ))}
                 </select>

@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const {
       ingredient,
       store,
-      location = '53206',
+      location = '30309',
       searchType = 'alternatives' // 'alternatives', 'substitutes', 'availability'
     } = body
 
@@ -47,22 +47,22 @@ export async function POST(request: NextRequest) {
     switch (searchType) {
       case 'alternatives':
         searchPrompt = store 
-          ? `Find ingredient alternatives for "${ingredient}" available at ${store} in Milwaukee, Wisconsin (${location}). Include pricing, package sizes, and product names. If ${store} doesn't carry good alternatives, suggest other Milwaukee stores that do.`
-          : `Find ingredient alternatives and substitutes for "${ingredient}" available at Milwaukee stores (zip code ${location}). Include store names, pricing, package sizes, and product names for each alternative.`
+          ? `Find ingredient alternatives for "${ingredient}" available at ${store} in Atlanta, Georgia (${location}). Include pricing, package sizes, and product names. If ${store} doesn't carry good alternatives, suggest other Atlanta stores that do.`
+          : `Find ingredient alternatives and substitutes for "${ingredient}" available at Atlanta stores (zip code ${location}). Include store names, pricing, package sizes, and product names for each alternative.`
         break
         
       case 'substitutes':
-        searchPrompt = `What are good cooking substitutes for "${ingredient}"? Include ratios and any preparation differences. Then find these substitutes at Milwaukee grocery stores (${location}) with current pricing.`
+        searchPrompt = `What are good cooking substitutes for "${ingredient}"? Include ratios and any preparation differences. Then find these substitutes at Atlanta grocery stores (${location}) with current pricing.`
         break
         
       case 'availability':
         searchPrompt = store
-          ? `Check if ${store} in Milwaukee (${location}) carries "${ingredient}". If yes, provide current pricing and product details. If no, suggest the closest Milwaukee stores that do carry it.`
-          : `Find which Milwaukee grocery stores (${location}) carry "${ingredient}" and provide current pricing, package sizes, and store addresses.`
+          ? `Check if ${store} in Atlanta (${location}) carries "${ingredient}". If yes, provide current pricing and product details. If no, suggest the closest Atlanta stores that do carry it.`
+          : `Find which Atlanta grocery stores (${location}) carry "${ingredient}" and provide current pricing, package sizes, and store addresses.`
         break
         
       default:
-        searchPrompt = `Find alternatives and pricing for "${ingredient}" at Milwaukee grocery stores (${location}).`
+        searchPrompt = `Find alternatives and pricing for "${ingredient}" at Atlanta grocery stores (${location}).`
     }
 
     console.log(`📝 Search prompt:`, searchPrompt.substring(0, 200) + '...')
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         messages: [
           {
             role: 'system',
-            content: 'You are a Milwaukee grocery shopping expert. Provide accurate, current pricing information for ingredients and alternatives. Always include store names, product names, package sizes, prices, and store addresses when available. Format responses as structured data when possible.'
+            content: 'You are a grocery shopping expert. Provide accurate, current pricing information for ingredients and alternatives. Always include store names, product names, package sizes, prices, and store addresses when available. Format responses as structured data when possible.'
           },
           {
             role: 'user',

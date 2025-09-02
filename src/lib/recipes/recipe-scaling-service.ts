@@ -172,14 +172,15 @@ export class RecipeScalingService {
     userLocation?: string
   ): Promise<IngredientSubstitution[]> {
     try {
-      // Use AI to generate culturally appropriate substitutions
-      const { bedrockService } = await import('@/lib/ai/bedrock-service');
-      const aiSubstitutions = await bedrockService.suggestSubstitutions(
-        ingredient.name,
-        recipe.culturalOrigin,
-        reason,
-        reason === 'cost' ? 10 : undefined // Budget limit for cost-based substitutions
-      );
+      // Note: Bedrock API disabled - using basic substitution logic
+      console.log('Using basic substitution logic (Bedrock AI disabled)');
+      const aiSubstitutions = [{
+        original: ingredient.name,
+        substitute: this.getBasicSubstitute(ingredient.name),
+        reason: 'Basic ingredient substitution',
+        culturalImpact: 'Minimal',
+        availabilityNotes: 'Common substitute available at most stores'
+      }];
 
       const substitutions: IngredientSubstitution[] = [];
 
@@ -216,6 +217,28 @@ export class RecipeScalingService {
       console.error('Failed to generate substitutions:', error);
       return [];
     }
+  }
+
+  /**
+   * Get basic substitute for common ingredients (fallback when AI is disabled)
+   */
+  private getBasicSubstitute(ingredient: string): string {
+    const ingredient_lower = ingredient.toLowerCase();
+    
+    // Common substitutions
+    if (ingredient_lower.includes('butter')) return 'vegetable oil';
+    if (ingredient_lower.includes('milk')) return 'almond milk';
+    if (ingredient_lower.includes('eggs')) return 'egg substitute';
+    if (ingredient_lower.includes('cream')) return 'half and half';
+    if (ingredient_lower.includes('flour')) return 'all-purpose flour';
+    if (ingredient_lower.includes('sugar')) return 'honey';
+    if (ingredient_lower.includes('salt')) return 'sea salt';
+    if (ingredient_lower.includes('pepper')) return 'black pepper';
+    if (ingredient_lower.includes('onion')) return 'shallots';
+    if (ingredient_lower.includes('garlic')) return 'garlic powder';
+    
+    // Default: return the original ingredient
+    return ingredient;
   }
 
   /**

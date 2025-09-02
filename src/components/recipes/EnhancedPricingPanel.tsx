@@ -204,7 +204,7 @@ export function EnhancedPricingPanel({ data, className = '', onSearchStores }: P
             <span className="px-3 py-1 rounded-full text-xs bg-purple-100 text-purple-800 border border-purple-200">
               Source: Perplexity AI
             </span>
-            <span className="text-green-700">Verified Milwaukee stores</span>
+            <span className="text-green-700">Verified store locations</span>
           </div>
           <div className="text-green-700">
             Portion cost: <span className="font-semibold">${portionTotal.toFixed(2)}</span>
@@ -407,7 +407,7 @@ export function EnhancedPricingPanel({ data, className = '', onSearchStores }: P
                     {searchingIdx === oi ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        Searching Milwaukee stores...
+                        Searching local stores...
                       </>
                     ) : (
                       <>

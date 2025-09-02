@@ -3,6 +3,23 @@
  * Provides local store discovery, specialty market finding, and location services
  */
 
+// Simple in-memory cache for validated addresses
+interface ValidationCacheEntry {
+  result: {
+    isValid: boolean;
+    correctedAddress?: string;
+    placeId?: string;
+    phone?: string;
+    website?: string;
+    rating?: number;
+    verification: 'verified' | 'corrected' | 'not_found';
+  };
+  timestamp: number;
+}
+
+const validationCache = new Map<string, ValidationCacheEntry>();
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
 // Types for Google Places API integration
 export interface PlaceResult {
   place_id: string;
@@ -686,7 +703,7 @@ export class GooglePlacesService {
   async validateStoreAddress(
     storeName: string,
     currentAddress: string,
-    city: string = 'Milwaukee, WI'
+    city: string = 'Atlanta, GA'
   ): Promise<{
     isValid: boolean;
     correctedAddress?: string;
@@ -696,6 +713,16 @@ export class GooglePlacesService {
     rating?: number;
     verification: 'verified' | 'corrected' | 'not_found';
   }> {
+    // Create cache key from store name and city
+    const cacheKey = `${storeName.toLowerCase()}:${city.toLowerCase()}`;
+    
+    // Check cache first
+    const cached = validationCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+      console.log(`📦 Using cached validation for ${storeName} in ${city}`);
+      return cached.result;
+    }
+
     try {
       // First, try to find the exact store by name and location
       const searchQuery = `${storeName} ${city}`;
@@ -705,16 +732,18 @@ export class GooglePlacesService {
         type: 'grocery_or_supermarket'
       });
 
+      let result;
+
       if (response.results && response.results.length > 0) {
         // Find the best match
         let bestMatch = response.results[0];
         let bestScore = this.calculateStoreNameMatch(storeName, bestMatch.name);
 
         // Check all results for better matches
-        for (const result of response.results) {
-          const score = this.calculateStoreNameMatch(storeName, result.name);
+        for (const r of response.results) {
+          const score = this.calculateStoreNameMatch(storeName, r.name);
           if (score > bestScore) {
-            bestMatch = result;
+            bestMatch = r;
             bestScore = score;
           }
         }
@@ -727,7 +756,7 @@ export class GooglePlacesService {
           // Check if the address matches or is close
           const addressMatch = this.compareAddresses(currentAddress, bestMatch.formatted_address);
           
-          return {
+          result = {
             isValid: addressMatch > 0.8,
             correctedAddress: bestMatch.formatted_address,
             placeId: bestMatch.place_id,
@@ -740,32 +769,53 @@ export class GooglePlacesService {
       }
 
       // If no good match found, try a more general search
-      const fallbackQuery = `grocery store ${storeName.split(' ')[0]} ${city}`;
-      const fallbackResponse = await this.makeRequest<{ results: PlaceResult[] }>('/textsearch/json', {
-        query: fallbackQuery
-      });
+      if (!result) {
+        const fallbackQuery = `grocery store ${storeName.split(' ')[0]} ${city}`;
+        const fallbackResponse = await this.makeRequest<{ results: PlaceResult[] }>('/textsearch/json', {
+          query: fallbackQuery
+        });
 
-      if (fallbackResponse.results && fallbackResponse.results.length > 0) {
-        const fallbackMatch = fallbackResponse.results[0];
-        return {
+        if (fallbackResponse.results && fallbackResponse.results.length > 0) {
+          const fallbackMatch = fallbackResponse.results[0];
+          result = {
+            isValid: false,
+            correctedAddress: fallbackMatch.formatted_address,
+            placeId: fallbackMatch.place_id,
+            verification: 'corrected'
+          };
+        }
+      }
+
+      // Final fallback
+      if (!result) {
+        result = {
           isValid: false,
-          correctedAddress: fallbackMatch.formatted_address,
-          placeId: fallbackMatch.place_id,
-          verification: 'corrected'
+          verification: 'not_found'
         };
       }
 
-      return {
-        isValid: false,
-        verification: 'not_found'
-      };
+      // Cache the result
+      validationCache.set(cacheKey, {
+        result,
+        timestamp: Date.now()
+      });
+
+      return result;
 
     } catch (error) {
       console.error('Store address validation failed:', error);
-      return {
+      const errorResult = {
         isValid: false,
         verification: 'not_found'
       };
+      
+      // Even cache error results to avoid repeated failures
+      validationCache.set(cacheKey, {
+        result: errorResult,
+        timestamp: Date.now()
+      });
+      
+      return errorResult;
     }
   }
 
@@ -796,7 +846,7 @@ export class GooglePlacesService {
         const validation = await this.validateStoreAddress(
           store.storeName,
           store.address,
-          store.city || 'Milwaukee, WI'
+          store.city || 'Atlanta, GA'
         );
 
         results.push({
@@ -840,7 +890,7 @@ export class GooglePlacesService {
 
     for (const storeName of storeNames) {
       try {
-        const validation = await this.validateStoreAddress(storeName, '', 'Milwaukee, WI');
+        const validation = await this.validateStoreAddress(storeName, '', 'Atlanta, GA');
         
         if (validation.verification !== 'not_found' && validation.correctedAddress) {
           // Get location details

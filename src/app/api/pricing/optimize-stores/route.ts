@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { shoppingOptimizer } from '@/lib/pricing/shopping-optimizer'
+import { fallbackGeocodingService } from '@/lib/external-apis/fallback-geocoding'
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,15 +8,40 @@ export async function POST(request: NextRequest) {
     
     const {
       ingredients,
-      preferredStore = "Pick 'n Save",
-      location = '53206',
+      preferredStore,
+      location,
+      city,
       existingPricingData
     } = body
 
+    // Get dynamic location info if not provided
+    let actualLocation = location;
+    let actualCity = city;
+    let actualPreferredStore = preferredStore;
+    
+    if (!location || !city || !preferredStore) {
+      console.log('🔍 Missing location info, using fallback defaults');
+      // Default to Atlanta for new dynamic system
+      const fallbackLocation = 'Atlanta, GA';
+      const locationData = fallbackGeocodingService.getCityData(fallbackLocation);
+      
+      if (locationData) {
+        actualLocation = actualLocation || locationData.zipCode;
+        actualCity = actualCity || `${locationData.city}, ${locationData.state}`;
+        actualPreferredStore = actualPreferredStore || locationData.commonStores[0];
+      } else {
+        // Final fallback
+        actualLocation = actualLocation || '30309';
+        actualCity = actualCity || 'Atlanta, GA';
+        actualPreferredStore = actualPreferredStore || 'Kroger';
+      }
+    }
+
     console.log(`🎯 Store optimization request:`, {
       ingredientCount: ingredients?.length || 0,
-      preferredStore,
-      location,
+      preferredStore: actualPreferredStore,
+      location: actualLocation,
+      city: actualCity,
       hasExistingData: !!existingPricingData
     })
 
@@ -47,8 +73,8 @@ export async function POST(request: NextRequest) {
     // Run optimization
     const optimizedPlan = await shoppingOptimizer.optimizeForOneStore(
       validIngredients,
-      preferredStore,
-      location,
+      actualPreferredStore,
+      actualLocation,
       existingPricingData
     )
 
@@ -85,9 +111,21 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
-  const location = searchParams.get('location') || '53206'
+  const location = searchParams.get('location') || '30309' // Atlanta default instead of Milwaukee
   
   try {
+    // Get dynamic location data for available stores
+    const fallbackLocation = 'Atlanta, GA';
+    const locationData = fallbackGeocodingService.getCityData(fallbackLocation);
+    const availableStores = locationData?.commonStores || [
+      "Kroger",
+      "Publix", 
+      "Whole Foods Market",
+      "Aldi",
+      "Walmart",
+      "Target"
+    ];
+    
     // Return available optimization strategies
     const mockIngredients = [
       { name: 'cabbage', amount: 3, unit: 'cups' },
@@ -102,14 +140,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       strategies,
-      availableStores: [
-        "Pick 'n Save",
-        "Metro Market", 
-        "Asian International Market",
-        "Aldi",
-        "Walmart",
-        "Woodman's Market"
-      ],
+      availableStores,
       location
     })
     
